@@ -1,31 +1,16 @@
 import { useExcalidrawAPI } from "@excalidraw/excalidraw";
-import ConfirmDialog from "@excalidraw/excalidraw/components/ConfirmDialog";
-import {
-  PlusIcon,
-  TrashIcon,
-  copyIcon,
-  pencilIcon,
-} from "@excalidraw/excalidraw/components/icons";
+import { PlusIcon } from "@excalidraw/excalidraw/components/icons";
 import clsx from "clsx";
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 
 import { useAtomValue, useSetAtom } from "../app-jotai";
 import { isCollaboratingAtom } from "../collab/Collab";
-import {
-  createDocument,
-  deleteDocument,
-  duplicateDocument,
-  renameDocument,
-  switchToDocument,
-} from "../documents/actions";
+import { createDocument, switchToDocument } from "../documents/actions";
 import {
   DOCUMENT_DRAG_MIME,
   assignDocumentToCollection,
   createCollection,
-  deleteCollection,
   getCollections,
-  getDocumentCollectionId,
-  renameCollection,
 } from "../documents/collections";
 import {
   ROOT_COLLECTION_ID,
@@ -36,7 +21,6 @@ import {
 import "./DocumentsTab.scss";
 
 import type { OpenCollectionId } from "../documents/state";
-import type { CollectionId, DocumentId } from "../documents/storage";
 
 const MS_IN_MINUTE = 60 * 1000;
 const RELATIVE_TIME_UNITS: [number, Intl.RelativeTimeFormatUnit][] = [
@@ -65,27 +49,9 @@ export const DocumentsTab = () => {
   const isCollaborating = useAtomValue(isCollaboratingAtom);
   const setOpenCollectionId = useSetAtom(openCollectionIdAtom);
 
-  const [renamingId, setRenamingId] = useState<DocumentId | null>(null);
-  const [renameValue, setRenameValue] = useState("");
-  const [pendingDeleteId, setPendingDeleteId] = useState<DocumentId | null>(
-    null,
-  );
-
-  const [renamingCollectionId, setRenamingCollectionId] =
-    useState<CollectionId | null>(null);
-  const [collectionRenameValue, setCollectionRenameValue] = useState("");
-  const [pendingDeleteCollectionId, setPendingDeleteCollectionId] =
-    useState<CollectionId | null>(null);
   const [dropTargetId, setDropTargetId] = useState<OpenCollectionId | null>(
     null,
   );
-
-  const renameInputRef = useRef<HTMLInputElement>(null);
-  useEffect(() => {
-    if (renamingId || renamingCollectionId) {
-      renameInputRef.current?.select();
-    }
-  }, [renamingId, renamingCollectionId]);
 
   if (!excalidrawAPI) {
     return null;
@@ -97,44 +63,6 @@ export const DocumentsTab = () => {
   const documents = [...documentsIndex.documents].sort(
     (a, b) => b.updatedAt - a.updatedAt,
   );
-
-  const documentCounts = new Map<CollectionId | null, number>();
-  for (const doc of documents) {
-    const collectionId = getDocumentCollectionId(doc, collections);
-    documentCounts.set(
-      collectionId,
-      (documentCounts.get(collectionId) ?? 0) + 1,
-    );
-  }
-
-  const pendingDeleteDoc = documents.find((doc) => doc.id === pendingDeleteId);
-  const pendingDeleteCollection = collections.find(
-    (collection) => collection.id === pendingDeleteCollectionId,
-  );
-
-  const startRename = (id: DocumentId, currentName: string) => {
-    setRenamingId(id);
-    setRenameValue(currentName);
-  };
-
-  const commitRename = () => {
-    if (renamingId) {
-      renameDocument(renamingId, renameValue, excalidrawAPI);
-    }
-    setRenamingId(null);
-  };
-
-  const startCollectionRename = (id: CollectionId, currentName: string) => {
-    setRenamingCollectionId(id);
-    setCollectionRenameValue(currentName);
-  };
-
-  const commitCollectionRename = () => {
-    if (renamingCollectionId) {
-      renameCollection(renamingCollectionId, collectionRenameValue);
-    }
-    setRenamingCollectionId(null);
-  };
 
   const collectionDropHandlers = (target: OpenCollectionId) => ({
     onDragOver: (event: React.DragEvent) => {
@@ -190,7 +118,7 @@ export const DocumentsTab = () => {
           title="New collection"
           onClick={() => {
             const meta = createCollection();
-            startCollectionRename(meta.id, meta.name);
+            setOpenCollectionId(meta.id);
           }}
         >
           {PlusIcon}
@@ -209,84 +137,28 @@ export const DocumentsTab = () => {
             {folderIcon}
             Dashboard
           </div>
-          <span className="documents-tab__collection-count">
-            {documentCounts.get(null) ?? 0}
-          </span>
         </div>
-        {collections.map((collection) => {
-          const isRenaming = collection.id === renamingCollectionId;
-          return (
-            <div
-              key={collection.id}
-              className={clsx("documents-tab__collection", {
-                "documents-tab__collection--drop-target":
-                  dropTargetId === collection.id,
-              })}
-              onClick={() => {
-                if (!isRenaming) {
-                  setOpenCollectionId(collection.id);
-                }
-              }}
-              {...collectionDropHandlers(collection.id)}
-            >
-              {isRenaming ? (
-                <input
-                  ref={renameInputRef}
-                  className="documents-tab__rename-input"
-                  value={collectionRenameValue}
-                  onChange={(event) =>
-                    setCollectionRenameValue(event.target.value)
-                  }
-                  onClick={(event) => event.stopPropagation()}
-                  onBlur={commitCollectionRename}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter") {
-                      commitCollectionRename();
-                    } else if (event.key === "Escape") {
-                      setRenamingCollectionId(null);
-                    }
-                  }}
-                />
-              ) : (
-                <div className="documents-tab__collection-name">
-                  {folderIcon}
-                  {collection.name}
-                </div>
-              )}
-              <span className="documents-tab__collection-count">
-                {documentCounts.get(collection.id) ?? 0}
-              </span>
-              <div className="documents-tab__item-actions">
-                <button
-                  type="button"
-                  title="Rename collection"
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    startCollectionRename(collection.id, collection.name);
-                  }}
-                >
-                  {pencilIcon}
-                </button>
-                <button
-                  type="button"
-                  title="Delete collection"
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    setPendingDeleteCollectionId(collection.id);
-                  }}
-                >
-                  {TrashIcon}
-                </button>
-              </div>
+        {collections.map((collection) => (
+          <div
+            key={collection.id}
+            className={clsx("documents-tab__collection", {
+              "documents-tab__collection--drop-target":
+                dropTargetId === collection.id,
+            })}
+            onClick={() => setOpenCollectionId(collection.id)}
+            {...collectionDropHandlers(collection.id)}
+          >
+            <div className="documents-tab__collection-name">
+              {folderIcon}
+              {collection.name}
             </div>
-          );
-        })}
+          </div>
+        ))}
       </div>
       <div className="documents-tab__section-header">All documents</div>
       <div className="documents-tab__list">
         {documents.map((doc) => {
           const isActive = doc.id === documentsIndex.activeDocumentId;
-          const isRenaming = doc.id === renamingId;
           const switchDisabled = isCollaborating || isActive;
           return (
             <div
@@ -295,118 +167,35 @@ export const DocumentsTab = () => {
                 "documents-tab__item--active": isActive,
                 "documents-tab__item--disabled": isCollaborating && !isActive,
               })}
-              // dragging interferes with text selection in the rename input
-              draggable={!isRenaming}
+              draggable
               onDragStart={(event) => {
                 event.dataTransfer.setData(DOCUMENT_DRAG_MIME, doc.id);
                 event.dataTransfer.effectAllowed = "move";
               }}
               onClick={() => {
-                if (!switchDisabled && !isRenaming) {
+                if (!switchDisabled) {
                   switchToDocument(doc.id, excalidrawAPI);
                 }
               }}
             >
               <div className="documents-tab__item-info">
-                {isRenaming ? (
-                  <input
-                    ref={renameInputRef}
-                    className="documents-tab__rename-input"
-                    value={renameValue}
-                    onChange={(event) => setRenameValue(event.target.value)}
-                    onClick={(event) => event.stopPropagation()}
-                    onBlur={commitRename}
-                    onKeyDown={(event) => {
-                      if (event.key === "Enter") {
-                        commitRename();
-                      } else if (event.key === "Escape") {
-                        setRenamingId(null);
-                      }
-                    }}
-                  />
-                ) : (
-                  <div className="documents-tab__item-name">
-                    {isActive && (
-                      <span
-                        className="documents-tab__active-dot"
-                        title="Active document"
-                      />
-                    )}
-                    {doc.name}
-                  </div>
-                )}
+                <div className="documents-tab__item-name">
+                  {isActive && (
+                    <span
+                      className="documents-tab__active-dot"
+                      title="Active document"
+                    />
+                  )}
+                  {doc.name}
+                </div>
                 <div className="documents-tab__item-time">
                   {formatRelativeTime(doc.updatedAt)}
                 </div>
-              </div>
-              <div className="documents-tab__item-actions">
-                <button
-                  type="button"
-                  title="Rename"
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    startRename(doc.id, doc.name);
-                  }}
-                >
-                  {pencilIcon}
-                </button>
-                <button
-                  type="button"
-                  title="Duplicate"
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    duplicateDocument(doc.id);
-                  }}
-                >
-                  {copyIcon}
-                </button>
-                <button
-                  type="button"
-                  title="Delete"
-                  disabled={isActive && isCollaborating}
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    setPendingDeleteId(doc.id);
-                  }}
-                >
-                  {TrashIcon}
-                </button>
               </div>
             </div>
           );
         })}
       </div>
-      {pendingDeleteDoc && (
-        <ConfirmDialog
-          title="Delete document"
-          onConfirm={() => {
-            deleteDocument(pendingDeleteDoc.id, excalidrawAPI);
-            setPendingDeleteId(null);
-          }}
-          onCancel={() => setPendingDeleteId(null)}
-        >
-          <p>
-            Are you sure you want to delete <b>{pendingDeleteDoc.name}</b>? This
-            cannot be undone.
-          </p>
-        </ConfirmDialog>
-      )}
-      {pendingDeleteCollection && (
-        <ConfirmDialog
-          title="Delete collection"
-          onConfirm={() => {
-            deleteCollection(pendingDeleteCollection.id);
-            setPendingDeleteCollectionId(null);
-          }}
-          onCancel={() => setPendingDeleteCollectionId(null)}
-        >
-          <p>
-            Are you sure you want to delete{" "}
-            <b>{pendingDeleteCollection.name}</b>? Its documents will move back
-            to Dashboard.
-          </p>
-        </ConfirmDialog>
-      )}
     </div>
   );
 };
