@@ -40,11 +40,19 @@ import type { MaybePromise } from "@excalidraw/common/utility-types";
 
 import { appJotaiStore, atom } from "../app-jotai";
 import { SAVE_TO_LOCAL_STORAGE_TIMEOUT, STORAGE_KEYS } from "../app_constants";
+import {
+  getActiveDocumentId,
+  getDocumentsIndex,
+  setDocumentsIndex,
+} from "../documents/state";
+import { saveDocumentSync } from "../documents/storage";
 
 import { FileManager } from "./FileManager";
 import { FileStatusStore } from "./fileStatusStore";
 import { Locker } from "./Locker";
 import { updateBrowserStateVersion } from "./tabSync";
+
+import type { DocumentId } from "../documents/storage";
 
 const filesStore = createStore("files-db", "files-store");
 
@@ -71,6 +79,7 @@ class LocalFileManager extends FileManager {
 }
 
 const saveDataStateToLocalStorage = (
+  docId: DocumentId,
   elements: readonly ExcalidrawElement[],
   appState: AppState,
 ) => {
@@ -78,6 +87,13 @@ const saveDataStateToLocalStorage = (
     localStorageQuotaExceededAtom,
   );
   try {
+    const index = getDocumentsIndex();
+    if (!index.documents.some((doc) => doc.id === docId)) {
+      // document was deleted while this save was pending — don't write
+      // orphaned keys
+      return;
+    }
+
     const _appState = clearAppStateForLocalStorage(appState);
 
     if (
@@ -87,14 +103,26 @@ const saveDataStateToLocalStorage = (
       _appState.openSidebar = null;
     }
 
-    localStorage.setItem(
-      STORAGE_KEYS.LOCAL_STORAGE_ELEMENTS,
-      JSON.stringify(getNonDeletedElements(elements)),
-    );
-    localStorage.setItem(
-      STORAGE_KEYS.LOCAL_STORAGE_APP_STATE,
-      JSON.stringify(_appState),
-    );
+    saveDocumentSync(docId, {
+      elements: getNonDeletedElements(elements),
+      appState: _appState,
+    });
+
+    setDocumentsIndex({
+      ...index,
+      documents: index.documents.map((doc) =>
+        doc.id === docId
+          ? {
+              ...doc,
+              // appState.name is synced back so renames via the export
+              // dialog's ProjectName field flow into the index
+              name: appState.name || doc.name,
+              updatedAt: Date.now(),
+            }
+          : doc,
+      ),
+    });
+
     updateBrowserStateVersion(STORAGE_KEYS.VERSION_DATA_STATE);
     if (localStorageQuotaExceeded) {
       appJotaiStore.set(localStorageQuotaExceededAtom, false);
@@ -112,17 +140,20 @@ const isQuotaExceededError = (error: any) => {
   return error instanceof DOMException && error.name === "QuotaExceededError";
 };
 
-type SavingLockTypes = "collaboration";
+type SavingLockTypes = "collaboration" | "switchingDocument";
 
 export class LocalData {
   private static _save = debounce(
     async (
+      // the target document is captured at schedule time so a document
+      // switch can never redirect a pending save to the wrong keys
+      docId: DocumentId,
       elements: readonly ExcalidrawElement[],
       appState: AppState,
       files: BinaryFiles,
       onFilesSaved: () => void,
     ) => {
-      saveDataStateToLocalStorage(elements, appState);
+      saveDataStateToLocalStorage(docId, elements, appState);
 
       await this.fileStorage.saveFiles({
         elements,
@@ -142,12 +173,23 @@ export class LocalData {
   ) => {
     // we need to make the `isSavePaused` check synchronously (undebounced)
     if (!this.isSavePaused()) {
-      this._save(elements, appState, files, onFilesSaved);
+      this._save(
+        getActiveDocumentId(),
+        elements,
+        appState,
+        files,
+        onFilesSaved,
+      );
     }
   };
 
   static flushSave = () => {
     this._save.flush();
+  };
+
+  /** drops any pending (debounced) save without executing it */
+  static cancelSave = () => {
+    this._save.cancel();
   };
 
   private static locker = new Locker<SavingLockTypes>();

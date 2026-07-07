@@ -8,8 +8,9 @@ import type {
 } from "@excalidraw/element/types";
 import type { AppState, BinaryFileData } from "@excalidraw/excalidraw/types";
 
-import { STORAGE_KEYS } from "./app_constants";
+import { docAppStateKey, docElementsKey } from "./app_constants";
 import { LocalData } from "./data/LocalData";
+import { getOrCreateDocumentsIndex } from "./documents/storage";
 
 const EVENT_REQUEST_SCENE = "REQUEST_SCENE";
 
@@ -175,12 +176,13 @@ export const ExcalidrawPlusIframeExport = () => {
             throw new ExcalidrawError("Failed to verify JWT");
           }
 
+          const documentsIndex = getOrCreateDocumentsIndex();
           const parsedSceneData: MESSAGE_SCENE_DATA = await parseSceneData({
             rawAppStateString: localStorage.getItem(
-              STORAGE_KEYS.LOCAL_STORAGE_APP_STATE,
+              docAppStateKey(documentsIndex.activeDocumentId),
             ),
             rawElementsString: localStorage.getItem(
-              STORAGE_KEYS.LOCAL_STORAGE_ELEMENTS,
+              docElementsKey(documentsIndex.activeDocumentId),
             ),
           });
 

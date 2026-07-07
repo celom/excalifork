@@ -116,6 +116,12 @@ import {
 
 import { updateStaleImageStatuses } from "./data/FileManager";
 import { FileStatusStore } from "./data/fileStatusStore";
+import { applyDocumentToScene } from "./documents/actions";
+import {
+  getActiveDocumentId,
+  refreshDocumentsIndexFromStorage,
+} from "./documents/state";
+import { getAllDocumentFileIds } from "./documents/storage";
 import {
   importFromLocalStorage,
   importUsernameFromLocalStorage,
@@ -509,9 +515,12 @@ const ExcalidrawWrapper = () => {
               });
           }
           // on fresh load, clear unused files from IDB (from previous
-          // session)
+          // session). Include files referenced by inactive documents so
+          // they don't get collected while their document sits unopened.
           LocalData.fileStorage.clearObsoleteFiles({
-            currentFileIds: fileIds,
+            currentFileIds: [
+              ...new Set([...fileIds, ...getAllDocumentFileIds()]),
+            ],
           });
         }
       }
@@ -566,13 +575,27 @@ const ExcalidrawWrapper = () => {
       ) {
         // don't sync if local state is newer or identical to browser state
         if (isBrowserStorageStateNewer(STORAGE_KEYS.VERSION_DATA_STATE)) {
-          const localDataState = importFromLocalStorage();
+          const prevActiveDocumentId = getActiveDocumentId();
+          const documentsIndex = refreshDocumentsIndexFromStorage();
           const username = importUsernameFromLocalStorage();
           setLangCode(getPreferredLanguage());
-          excalidrawAPI.updateScene({
-            ...localDataState,
-            captureUpdate: CaptureUpdateAction.NEVER,
-          });
+          if (documentsIndex.activeDocumentId !== prevActiveDocumentId) {
+            // another tab switched the active document — swap the scene
+            // (clears undo history) instead of merging state
+            LocalData.pauseSave("switchingDocument");
+            applyDocumentToScene(
+              documentsIndex.activeDocumentId,
+              excalidrawAPI,
+            ).finally(() => {
+              LocalData.resumeSave("switchingDocument");
+            });
+          } else {
+            const localDataState = importFromLocalStorage();
+            excalidrawAPI.updateScene({
+              ...localDataState,
+              captureUpdate: CaptureUpdateAction.NEVER,
+            });
+          }
           LibraryIndexedDBAdapter.load().then((data) => {
             if (data) {
               excalidrawAPI.updateLibrary({

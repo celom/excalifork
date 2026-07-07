@@ -37,8 +37,11 @@ export const FIREBASE_STORAGE_PREFIXES = {
 export const ROOM_ID_BYTES = 10;
 
 export const STORAGE_KEYS = {
+  // legacy single-scene keys — kept as migration source / backup, do not
+  // write to them (see excalidraw-app/documents/storage.ts)
   LOCAL_STORAGE_ELEMENTS: "excalidraw",
   LOCAL_STORAGE_APP_STATE: "excalidraw-state",
+  LOCAL_STORAGE_DOCUMENTS_INDEX: "excalidraw-documents",
   LOCAL_STORAGE_COLLAB: "excalidraw-collab",
   LOCAL_STORAGE_THEME: "excalidraw-theme",
   LOCAL_STORAGE_DEBUG: "excalidraw-debug",
@@ -51,6 +54,11 @@ export const STORAGE_KEYS = {
   // do not use apart from migrations
   __LEGACY_LOCAL_STORAGE_LIBRARY: "excalidraw-library",
 } as const;
+
+export const docElementsKey = (docId: string) =>
+  `excalidraw-doc-elements:${docId}`;
+export const docAppStateKey = (docId: string) =>
+  `excalidraw-doc-state:${docId}`;
 
 export const COOKIES = {
   AUTH_STATE_COOKIE: "excplus-auth",
