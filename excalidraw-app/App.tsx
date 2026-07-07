@@ -7,6 +7,7 @@ import {
   useEditorInterface,
   ExcalidrawAPIProvider,
   useExcalidrawAPI,
+  Sidebar,
 } from "@excalidraw/excalidraw";
 import { trackEvent } from "@excalidraw/excalidraw/analytics";
 import { getDefaultAppState } from "@excalidraw/excalidraw/appState";
@@ -152,6 +153,11 @@ import "./index.scss";
 
 import { ExcalidrawPlusPromoBanner } from "./components/ExcalidrawPlusPromoBanner";
 import { AppSidebar } from "./components/AppSidebar";
+import {
+  AppDocumentsSidebar,
+  DOCUMENTS_SIDEBAR_NAME,
+} from "./components/AppDocumentsSidebar";
+import { documentsTabIcon } from "./components/DocumentsTab";
 
 import type { CollabAPI } from "./collab/Collab";
 
@@ -975,6 +981,14 @@ const ExcalidrawWrapper = () => {
         autoFocus={true}
         theme={editorTheme}
         onThemeChange={setAppTheme}
+        renderTopLeftUI={() => (
+          <Sidebar.Trigger
+            name={DOCUMENTS_SIDEBAR_NAME}
+            icon={documentsTabIcon}
+            title="Documents"
+            className="documents-sidebar-trigger"
+          />
+        )}
         renderTopRightUI={(isMobile) => {
           if (isMobile || !collabAPI || isCollabDisabled) {
             return null;
@@ -1084,6 +1098,7 @@ const ExcalidrawWrapper = () => {
         />
 
         <AppSidebar />
+        <AppDocumentsSidebar />
 
         {errorMessage && (
           <ErrorDialog onClose={() => setErrorMessage("")}>

@@ -37,6 +37,20 @@
       border-right: 1px solid var(--sidebar-border-color);
       border-left: 0;
     }
+
+    &--left {
+      left: 0;
+      right: auto;
+      border-left: 0;
+      border-right: 1px solid var(--sidebar-border-color);
+
+      :root[dir="rtl"] & {
+        left: auto;
+        right: 0;
+        border-right: 0;
+        border-left: 1px solid var(--sidebar-border-color);
+      }
+    }
   }
 
   // ---------------------------- sidebar header ------------------------------

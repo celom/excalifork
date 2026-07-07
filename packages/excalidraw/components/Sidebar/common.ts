@@ -26,6 +26,12 @@ export type SidebarProps<P = {}> = {
    */
   onDock?: (docked: boolean) => void;
   docked?: boolean;
+  /**
+   * which side of the editor the sidebar is rendered on
+   * (mirrored in RTL)
+   * @default "right"
+   */
+  position?: "left" | "right";
   className?: string;
   // NOTE sidebars we use internally inside the editor must have this flag set.
   // It indicates that this sidebar should have lower precedence over host

@@ -52,6 +52,7 @@ export const SidebarInner = forwardRef(
       children,
       onDock,
       docked,
+      position,
       className,
       ...rest
     }: SidebarProps & Omit<React.RefAttributes<HTMLDivElement>, "onSelect">,
@@ -145,7 +146,10 @@ export const SidebarInner = forwardRef(
         {...rest}
         className={clsx(
           CLASSES.SIDEBAR,
-          { "sidebar--docked": docked },
+          {
+            "sidebar--docked": docked,
+            "sidebar--left": position === "left",
+          },
           className,
         )}
         // on mobile the sidebar shouldn't push the viewport around even
