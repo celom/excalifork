@@ -22,13 +22,15 @@
     gap: 0.5rem;
     background-color: var(--dashboard-bg-color);
 
-    // the scenes sidebar (left) stacks above the overlay
+    // the scenes sidebar (left) stacks above the overlay; inset by the
+    // sidebar's actual width (see Sidebar.scss) so no canvas strip shows
+    // through between the two and the sidebar shadow falls on the overlay
     &--sidebar-open {
-      left: var(--right-sidebar-width);
+      left: calc(var(--right-sidebar-width) - var(--space-factor) * 2);
 
       :root[dir="rtl"] & {
         left: 0;
-        right: var(--right-sidebar-width);
+        right: calc(var(--right-sidebar-width) - var(--space-factor) * 2);
       }
     }
 
