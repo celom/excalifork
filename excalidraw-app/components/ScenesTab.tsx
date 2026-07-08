@@ -1,17 +1,19 @@
 import { useExcalidrawAPI } from "@excalidraw/excalidraw";
-import { PlusIcon } from "@excalidraw/excalidraw/components/icons";
+import { PlusIcon, searchIcon } from "@excalidraw/excalidraw/components/icons";
 import clsx from "clsx";
 import { useState } from "react";
 
 import { useAtomValue, useSetAtom } from "../app-jotai";
 import { isCollaboratingAtom } from "../collab/Collab";
-import { createScene, switchToScene } from "../scenes/actions";
+import { LocalData } from "../data/LocalData";
+import { switchToScene } from "../scenes/actions";
 import {
   SCENE_DRAG_MIME,
   assignSceneToCollection,
   createCollection,
   getCollections,
 } from "../scenes/collections";
+import { searchScenes } from "../scenes/search";
 import {
   ROOT_COLLECTION_ID,
   scenesIndexAtom,
@@ -52,6 +54,7 @@ export const ScenesTab = () => {
   const [dropTargetId, setDropTargetId] = useState<OpenCollectionId | null>(
     null,
   );
+  const [searchQuery, setSearchQuery] = useState("");
 
   if (!excalidrawAPI) {
     return null;
@@ -60,9 +63,11 @@ export const ScenesTab = () => {
   const collections = [...getCollections(scenesIndex)].sort(
     (a, b) => a.createdAt - b.createdAt,
   );
-  const scenes = [...scenesIndex.scenes].sort(
-    (a, b) => b.updatedAt - a.updatedAt,
-  );
+
+  const isSearching = Boolean(searchQuery.trim());
+  const searchResults = isSearching
+    ? searchScenes(scenesIndex, searchQuery)
+    : [];
 
   const collectionDropHandlers = (target: OpenCollectionId) => ({
     onDragOver: (event: React.DragEvent) => {
@@ -95,107 +100,115 @@ export const ScenesTab = () => {
     <div className="scenes-tab">
       <div className="scenes-tab__header">
         <div className="scenes-tab__title">Scenes</div>
-        <button
-          type="button"
-          className="scenes-tab__new-button"
-          onClick={() => createScene(excalidrawAPI)}
-          disabled={isCollaborating}
-          title="New scene"
-        >
-          {PlusIcon}
-          New
-        </button>
+      </div>
+      <div className="scenes-tab__search">
+        {searchIcon}
+        <input
+          type="text"
+          placeholder="Search scenes…"
+          value={searchQuery}
+          onChange={(event) => setSearchQuery(event.target.value)}
+          // make the active scene's latest content searchable
+          onFocus={() => LocalData.flushSave()}
+        />
       </div>
       {isCollaborating && (
         <div className="scenes-tab__hint">
           Switching scenes is disabled during a live collaboration session.
         </div>
       )}
-      <div className="scenes-tab__section-header">
-        Collections
-        <button
-          type="button"
-          title="New collection"
-          onClick={() => {
-            const meta = createCollection();
-            setOpenCollectionId(meta.id);
-          }}
-        >
-          {PlusIcon}
-        </button>
-      </div>
-      <div className="scenes-tab__collections">
-        <div
-          className={clsx("scenes-tab__collection", {
-            "scenes-tab__collection--drop-target":
-              dropTargetId === ROOT_COLLECTION_ID,
-          })}
-          onClick={() => setOpenCollectionId(ROOT_COLLECTION_ID)}
-          {...collectionDropHandlers(ROOT_COLLECTION_ID)}
-        >
-          <div className="scenes-tab__collection-name">
-            {folderIcon}
-            Dashboard
-          </div>
-        </div>
-        {collections.map((collection) => (
-          <div
-            key={collection.id}
-            className={clsx("scenes-tab__collection", {
-              "scenes-tab__collection--drop-target":
-                dropTargetId === collection.id,
-            })}
-            onClick={() => setOpenCollectionId(collection.id)}
-            {...collectionDropHandlers(collection.id)}
-          >
-            <div className="scenes-tab__collection-name">
-              {folderIcon}
-              {collection.name}
-            </div>
-          </div>
-        ))}
-      </div>
-      <div className="scenes-tab__section-header">All scenes</div>
-      <div className="scenes-tab__list">
-        {scenes.map((scene) => {
-          const isActive = scene.id === scenesIndex.activeSceneId;
-          const switchDisabled = isCollaborating || isActive;
-          return (
-            <div
-              key={scene.id}
-              className={clsx("scenes-tab__item", {
-                "scenes-tab__item--active": isActive,
-                "scenes-tab__item--disabled": isCollaborating && !isActive,
-              })}
-              draggable
-              onDragStart={(event) => {
-                event.dataTransfer.setData(SCENE_DRAG_MIME, scene.id);
-                event.dataTransfer.effectAllowed = "move";
-              }}
-              onClick={() => {
-                if (!switchDisabled) {
-                  switchToScene(scene.id, excalidrawAPI);
-                }
-              }}
-            >
-              <div className="scenes-tab__item-info">
-                <div className="scenes-tab__item-name">
-                  {isActive && (
-                    <span
-                      className="scenes-tab__active-dot"
-                      title="Active scene"
-                    />
+      {isSearching ? (
+        <div className="scenes-tab__list">
+          {searchResults.map(({ meta, snippet }) => {
+            const isActive = meta.id === scenesIndex.activeSceneId;
+            const switchDisabled = isCollaborating || isActive;
+            return (
+              <div
+                key={meta.id}
+                className={clsx("scenes-tab__item", {
+                  "scenes-tab__item--active": isActive,
+                  "scenes-tab__item--disabled": isCollaborating && !isActive,
+                })}
+                onClick={() => {
+                  if (!switchDisabled) {
+                    switchToScene(meta.id, excalidrawAPI);
+                  }
+                }}
+              >
+                <div className="scenes-tab__item-info">
+                  <div className="scenes-tab__item-name">
+                    {isActive && (
+                      <span
+                        className="scenes-tab__active-dot"
+                        title="Active scene"
+                      />
+                    )}
+                    {meta.name}
+                  </div>
+                  {snippet ? (
+                    <div className="scenes-tab__item-snippet">{snippet}</div>
+                  ) : (
+                    <div className="scenes-tab__item-time">
+                      {formatRelativeTime(meta.updatedAt)}
+                    </div>
                   )}
-                  {scene.name}
-                </div>
-                <div className="scenes-tab__item-time">
-                  {formatRelativeTime(scene.updatedAt)}
                 </div>
               </div>
-            </div>
-          );
-        })}
-      </div>
+            );
+          })}
+          {!searchResults.length && (
+            <div className="scenes-tab__empty">No matching scenes.</div>
+          )}
+        </div>
+      ) : (
+        <>
+          <div
+            className={clsx("scenes-tab__dashboard", {
+              "scenes-tab__dashboard--drop-target":
+                dropTargetId === ROOT_COLLECTION_ID,
+            })}
+            onClick={() => setOpenCollectionId(ROOT_COLLECTION_ID)}
+            {...collectionDropHandlers(ROOT_COLLECTION_ID)}
+          >
+            {dashboardIcon}
+            Dashboard
+          </div>
+          <div className="scenes-tab__section-header">
+            Collections
+            <button
+              type="button"
+              title="New collection"
+              onClick={() => {
+                const meta = createCollection();
+                setOpenCollectionId(meta.id);
+              }}
+            >
+              {PlusIcon}
+            </button>
+          </div>
+          <div className="scenes-tab__collections">
+            {collections.map((collection) => (
+              <div
+                key={collection.id}
+                className={clsx("scenes-tab__collection", {
+                  "scenes-tab__collection--drop-target":
+                    dropTargetId === collection.id,
+                })}
+                onClick={() => setOpenCollectionId(collection.id)}
+                {...collectionDropHandlers(collection.id)}
+              >
+                <div className="scenes-tab__collection-name">
+                  {folderIcon}
+                  {collection.name}
+                </div>
+              </div>
+            ))}
+            {!collections.length && (
+              <div className="scenes-tab__empty">No collections yet.</div>
+            )}
+          </div>
+        </>
+      )}
     </div>
   );
 };
@@ -214,6 +227,24 @@ export const scenesTabIcon = (
     <path d="M15 3v4a1 1 0 0 0 1 1h4" />
     <path d="M18 17h-7a2 2 0 0 1 -2 -2v-10a2 2 0 0 1 2 -2h4l5 5v7a2 2 0 0 1 -2 2z" />
     <path d="M16 17v2a2 2 0 0 1 -2 2h-7a2 2 0 0 1 -2 -2v-10a2 2 0 0 1 2 -2h2" />
+  </svg>
+);
+
+// tabler-icons: layout-dashboard (no fitting icon in the editor package)
+const dashboardIcon = (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <path d="M5 4h4a1 1 0 0 1 1 1v6a1 1 0 0 1 -1 1h-4a1 1 0 0 1 -1 -1v-6a1 1 0 0 1 1 -1" />
+    <path d="M5 16h4a1 1 0 0 1 1 1v2a1 1 0 0 1 -1 1h-4a1 1 0 0 1 -1 -1v-2a1 1 0 0 1 1 -1" />
+    <path d="M15 12h4a1 1 0 0 1 1 1v6a1 1 0 0 1 -1 1h-4a1 1 0 0 1 -1 -1v-6a1 1 0 0 1 1 -1" />
+    <path d="M15 4h4a1 1 0 0 1 1 1v2a1 1 0 0 1 -1 1h-4a1 1 0 0 1 -1 -1v-2a1 1 0 0 1 1 -1" />
   </svg>
 );
 

@@ -7,6 +7,9 @@
  */
 
 import { CaptureUpdateAction } from "@excalidraw/excalidraw";
+import { clearAppStateForLocalStorage } from "@excalidraw/excalidraw/appState";
+import { loadFromBlob } from "@excalidraw/excalidraw/data/blob";
+import { fileOpen } from "@excalidraw/excalidraw/data/filesystem";
 import {
   restoreAppState,
   restoreElements,
@@ -24,7 +27,7 @@ import { LocalData } from "../data/LocalData";
 import { getScenesIndex, setScenesIndex } from "./state";
 import { scenesStorage, newSceneId } from "./storage";
 
-import type { SceneId, ScenesIndex } from "./storage";
+import type { CollectionId, SceneId, SceneMeta, ScenesIndex } from "./storage";
 
 const isCollaborating = () => !!appJotaiStore.get(isCollaboratingAtom);
 
@@ -131,35 +134,94 @@ export const switchToScene = async (
   }
 };
 
-export const createScene = async (excalidrawAPI: ExcalidrawImperativeAPI) => {
-  if (isCollaborating()) {
-    return;
-  }
+/**
+ * Adds a new empty scene to the index without switching to it — a pure
+ * index operation, so no collab gating and no save pausing. Returns the
+ * new meta so the caller can start an inline rename.
+ */
+export const createScene = (
+  collectionId: CollectionId | null = null,
+): SceneMeta => {
   const index = getScenesIndex();
   const now = Date.now();
-  const meta = {
+  const meta: SceneMeta = {
     id: newSceneId(),
     name: nextUntitledName(index),
     createdAt: now,
     updatedAt: now,
+    collectionId,
   };
+  // no scene keys are written until the scene is opened and first edited —
+  // missing keys load as an empty scene
+  setScenesIndex({ ...index, scenes: [...index.scenes, meta] });
+  return meta;
+};
+
+/**
+ * Imports an .excalidraw file as a new scene and switches to it.
+ * Returns the new scene's id, or null if the user cancelled the file picker.
+ */
+export const importScene = async (
+  excalidrawAPI: ExcalidrawImperativeAPI,
+  collectionId: CollectionId | null = null,
+): Promise<SceneId | null> => {
+  if (isCollaborating()) {
+    return null;
+  }
+
+  let file: File;
+  try {
+    file = await fileOpen({
+      description: "Excalidraw files",
+      extensions: ["excalidraw"],
+    });
+  } catch (error: any) {
+    if (error?.name === "AbortError") {
+      return null;
+    }
+    throw error;
+  }
+
+  const data = await loadFromBlob(file, null, null);
+
+  const id = newSceneId();
+  // embedded images go into the shared IDB files store, same as images
+  // added while drawing
+  if (data.files && Object.keys(data.files).length) {
+    await LocalData.fileStorage.saveFiles({
+      elements: data.elements,
+      files: data.files,
+    });
+  }
+  await scenesStorage.saveScene(id, {
+    elements: data.elements,
+    appState: clearAppStateForLocalStorage(data.appState),
+  });
+
+  const name =
+    data.appState.name?.trim() ||
+    file.name.replace(/\.excalidraw$/i, "").trim() ||
+    "Untitled";
 
   LocalData.flushSave();
   LocalData.pauseSave("switchingScene");
   try {
     // re-read — the flush above may have bumped the outgoing scene's meta
     const currentIndex = getScenesIndex();
+    const now = Date.now();
     setScenesIndex({
       ...currentIndex,
-      activeSceneId: meta.id,
-      scenes: [...currentIndex.scenes, meta],
+      activeSceneId: id,
+      scenes: [
+        ...currentIndex.scenes,
+        { id, name, createdAt: now, updatedAt: now, collectionId },
+      ],
     });
-    // no scene keys are written until the first onChange — missing keys load
-    // as an empty scene
-    await applyStoredScene(meta.id, excalidrawAPI);
+    await applyStoredScene(id, excalidrawAPI);
   } finally {
     LocalData.resumeSave("switchingScene");
   }
+  return id;
 };
 
 export const renameScene = (

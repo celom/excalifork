@@ -2,6 +2,8 @@ import { useExcalidrawAPI } from "@excalidraw/excalidraw";
 import ConfirmDialog from "@excalidraw/excalidraw/components/ConfirmDialog";
 import {
   CloseIcon,
+  LoadIcon,
+  PlusIcon,
   TrashIcon,
   pencilIcon,
 } from "@excalidraw/excalidraw/components/icons";
@@ -13,8 +15,10 @@ import { useAtom, useAtomValue } from "../app-jotai";
 import { isCollaboratingAtom } from "../collab/Collab";
 import { LocalData } from "../data/LocalData";
 import {
+  createScene,
   deleteScene,
   duplicateScene,
+  importScene,
   renameScene,
   switchToScene,
 } from "../scenes/actions";
@@ -141,11 +145,12 @@ export const CollectionDashboard = () => {
     (scene) => scene.id === pendingDeleteSceneId,
   );
 
+  const collectionId =
+    openCollectionId === ROOT_COLLECTION_ID ? null : openCollectionId;
+
   const scenes = scenesIndex.scenes
     .filter(
-      (scene) =>
-        getSceneCollectionId(scene, collections) ===
-        (openCollectionId === ROOT_COLLECTION_ID ? null : openCollectionId),
+      (scene) => getSceneCollectionId(scene, collections) === collectionId,
     )
     .sort((a, b) => b.updatedAt - a.updatedAt);
 
@@ -178,6 +183,35 @@ export const CollectionDashboard = () => {
           </div>
         )}
         <div className="collection-dashboard__header-actions">
+          <button
+            type="button"
+            className="collection-dashboard__button collection-dashboard__button--secondary"
+            title="Import an .excalidraw file as a new scene"
+            disabled={isCollaborating}
+            onClick={async () => {
+              const imported = await importScene(excalidrawAPI, collectionId);
+              if (imported) {
+                setOpenCollectionId(null);
+              }
+            }}
+          >
+            {LoadIcon}
+            Import scene
+          </button>
+          <button
+            type="button"
+            className="collection-dashboard__button"
+            title="Add new scene"
+            disabled={isCollaborating}
+            onClick={() => {
+              const meta = createScene(collectionId);
+              // let the user name the scene right away on its new card
+              setRenamingSceneId(meta.id);
+            }}
+          >
+            {PlusIcon}
+            New scene
+          </button>
           {collection && !isRenaming && (
             <>
               <button
