@@ -38,7 +38,7 @@ services:
     build:
       context: .
       args:
-        - VITE_APP_WS_SERVER_URL=${VITE_APP_WS_SERVER_URL:-https://room.draw.junct.io}
+        - VITE_APP_WS_SERVER_URL=${VITE_APP_WS_SERVER_URL:-https://zsq13nhl39clqlrdjdm9vy78.junct.io}
         - VITE_APP_FIREBASE_CONFIG=${VITE_APP_FIREBASE_CONFIG:-}
         - VITE_APP_BACKEND_V2_GET_URL=${VITE_APP_BACKEND_V2_GET_URL:-https://json.excalidraw.com/api/v2/}
         - VITE_APP_BACKEND_V2_POST_URL=${VITE_APP_BACKEND_V2_POST_URL:-https://json.excalidraw.com/api/v2/post/}
