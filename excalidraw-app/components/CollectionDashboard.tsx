@@ -29,29 +29,11 @@ import {
 
 import { SCENES_SIDEBAR_NAME } from "./AppScenesSidebar";
 import { SceneCard } from "./SceneCard";
+import { dashboardIcon, folderIcon } from "./ScenesTab";
 
 import "./CollectionDashboard.scss";
 
 import type { SceneId } from "../scenes/storage";
-
-// hand-drawn underline flourish beneath the title, echoing the welcome
-// screen's sketched decorations
-const titleUnderline = (
-  <svg
-    className="collection-dashboard__title-underline"
-    viewBox="0 0 120 7"
-    preserveAspectRatio="none"
-    aria-hidden="true"
-  >
-    <path
-      d="M2 4 C 30 1.5, 55 5.5, 82 3 S 112 2.5, 118 3.5"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="3"
-      strokeLinecap="round"
-    />
-  </svg>
-);
 
 export const CollectionDashboard = () => {
   const excalidrawAPI = useExcalidrawAPI();
@@ -154,11 +136,9 @@ export const CollectionDashboard = () => {
     >
       <div className="collection-dashboard__header">
         <div className="collection-dashboard__heading">
-          <div className="collection-dashboard__title-wrap">
-            <div className="collection-dashboard__title excalifont">
-              {collection ? collection.name : "Dashboard"}
-            </div>
-            {titleUnderline}
+          <div className="collection-dashboard__title">
+            {collection ? folderIcon : dashboardIcon}
+            <span>{collection ? collection.name : "Dashboard"}</span>
           </div>
           <div className="collection-dashboard__subtitle">
             {scenes.length === 1 ? "1 scene" : `${scenes.length} scenes`}

@@ -123,9 +123,6 @@ export const ScenesTab = () => {
 
   return (
     <div className="scenes-tab">
-      <div className="scenes-tab__header">
-        <div className="scenes-tab__title excalifont">Scenes</div>
-      </div>
       <div className="scenes-tab__search">
         {searchIcon}
         <input
@@ -335,7 +332,7 @@ export const scenesTabIcon = (
 );
 
 // tabler-icons: layout-dashboard (no fitting icon in the editor package)
-const dashboardIcon = (
+export const dashboardIcon = (
   <svg
     xmlns="http://www.w3.org/2000/svg"
     viewBox="0 0 24 24"
@@ -353,7 +350,7 @@ const dashboardIcon = (
 );
 
 // tabler-icons: folder (no fitting icon in the editor package)
-const folderIcon = (
+export const folderIcon = (
   <svg
     xmlns="http://www.w3.org/2000/svg"
     viewBox="0 0 24 24"
