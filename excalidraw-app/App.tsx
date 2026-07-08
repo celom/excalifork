@@ -981,14 +981,16 @@ const ExcalidrawWrapper = () => {
         autoFocus={true}
         theme={editorTheme}
         onThemeChange={setAppTheme}
-        renderTopLeftUI={() => (
-          <Sidebar.Trigger
-            name={SCENES_SIDEBAR_NAME}
-            icon={scenesTabIcon}
-            title="Scenes"
-            className="scenes-sidebar-trigger"
-          />
-        )}
+        renderTopLeftUI={(isMobile, appState) =>
+          appState.openSidebar?.name === SCENES_SIDEBAR_NAME ? null : (
+            <Sidebar.Trigger
+              name={SCENES_SIDEBAR_NAME}
+              icon={scenesTabIcon}
+              title="Scenes"
+              className="scenes-sidebar-trigger"
+            />
+          )
+        }
         renderTopRightUI={(isMobile) => {
           if (isMobile || !collabAPI || isCollabDisabled) {
             return null;
