@@ -27,7 +27,7 @@ import { formatRelativeTime, scenesTabIcon } from "./ScenesTab";
 
 import type { SceneMeta } from "../scenes/storage";
 
-// rendered at 2x for retina
+// fallback when the preview box can't be measured
 const CARD_PREVIEW_SIZE = 240;
 const PREVIEW_PADDING = 8;
 
@@ -134,6 +134,13 @@ export const SceneCard = ({
         height = width / boxRatio;
       }
 
+      // render at the box's real device-pixel size so the snapshot stays
+      // crisp on retina displays and in wide grid cells (maxWidthOrHeight
+      // won't do — it only downscales, and the frame is in scene units)
+      const targetWidth = Math.ceil(
+        (box?.width ?? CARD_PREVIEW_SIZE) * window.devicePixelRatio,
+      );
+
       const canvas = await exportToCanvas({
         elements,
         appState: {
@@ -148,7 +155,14 @@ export const SceneCard = ({
           width,
           height,
         }),
-        maxWidthOrHeight: CARD_PREVIEW_SIZE * 2,
+        getDimensions: (frameWidth, frameHeight) => {
+          const scale = targetWidth / frameWidth;
+          return {
+            width: targetWidth,
+            height: Math.ceil(frameHeight * scale),
+            scale,
+          };
+        },
       });
       if (isStale()) {
         return;
