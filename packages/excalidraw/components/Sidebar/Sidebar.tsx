@@ -36,14 +36,15 @@ import "./Sidebar.scss";
 import type { SidebarProps, SidebarPropsContextValue } from "./common";
 
 /**
- * Flags whether the currently rendered Sidebar is docked or not, for use
- * in upstream components that need to act on this (e.g. LayerUI to shift the
- * UI). We use an atom because of potential host app sidebars (for the default
- * sidebar we could just read from appState.defaultSidebarDockedPreference).
+ * Flags whether the currently rendered Sidebar is docked or not — and on
+ * which side — for use in upstream components that need to act on this
+ * (e.g. LayerUI to shift the UI towards the opposite side). We use an atom
+ * because of potential host app sidebars (for the default sidebar we could
+ * just read from appState.defaultSidebarDockedPreference).
  *
  * Since we can only render one Sidebar at a time, we can use a simple flag.
  */
-export const isSidebarDockedAtom = atom(false);
+export const isSidebarDockedAtom = atom<false | "left" | "right">(false);
 
 export const SidebarInner = forwardRef(
   (
@@ -69,11 +70,11 @@ export const SidebarInner = forwardRef(
     const setIsSidebarDockedAtom = useSetAtom(isSidebarDockedAtom);
 
     useLayoutEffect(() => {
-      setIsSidebarDockedAtom(!!docked);
+      setIsSidebarDockedAtom(docked ? position ?? "right" : false);
       return () => {
         setIsSidebarDockedAtom(false);
       };
-    }, [setIsSidebarDockedAtom, docked]);
+    }, [setIsSidebarDockedAtom, docked, position]);
 
     const headerPropsRef = useRef<SidebarPropsContextValue>(
       {} as SidebarPropsContextValue,

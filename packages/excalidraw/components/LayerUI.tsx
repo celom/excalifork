@@ -627,7 +627,17 @@ const LayerUI = ({
               appState.openSidebar &&
               isSidebarDocked &&
               editorInterface.canFitSidebar
-                ? { width: `calc(100% - var(--right-sidebar-width))` }
+                ? {
+                    // --right-sidebar-width is the width of any sidebar,
+                    // regardless of which side it's docked to
+                    width: `calc(100% - var(--right-sidebar-width))`,
+                    // a left-docked sidebar covers the start of the wrapper —
+                    // push the UI out from beneath it (the default, right
+                    // dock shrinks the width alone, shifting the UI left)
+                    ...(isSidebarDocked === "left"
+                      ? { marginInlineStart: "var(--right-sidebar-width)" }
+                      : {}),
+                  }
                 : {}
             }
           >

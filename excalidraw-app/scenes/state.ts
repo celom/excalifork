@@ -17,6 +17,38 @@ export type OpenCollectionId = CollectionId | typeof ROOT_COLLECTION_ID;
 /** which collection dashboard overlay is open (null = closed) */
 export const openCollectionIdAtom = atom<OpenCollectionId | null>(null);
 
+export const SCENES_SIDEBAR_NAME = "scenes";
+
+const loadSidebarPinned = () => {
+  try {
+    return (
+      localStorage.getItem(STORAGE_KEYS.LOCAL_STORAGE_SCENES_SIDEBAR_PINNED) ===
+      "true"
+    );
+  } catch {
+    return false;
+  }
+};
+
+const sidebarPinnedBaseAtom = atom<boolean>(loadSidebarPinned());
+
+/** whether the scenes sidebar is pinned open (persisted preference).
+ * unpinned, it closes on outside clicks and when a scene is opened */
+export const scenesSidebarPinnedAtom = atom(
+  (get) => get(sidebarPinnedBaseAtom),
+  (get, set, pinned: boolean) => {
+    set(sidebarPinnedBaseAtom, pinned);
+    try {
+      localStorage.setItem(
+        STORAGE_KEYS.LOCAL_STORAGE_SCENES_SIDEBAR_PINNED,
+        String(pinned),
+      );
+    } catch {
+      // best-effort preference — ignore quota errors
+    }
+  },
+);
+
 export const getScenesIndex = (): ScenesIndex => {
   return appJotaiStore.get(scenesIndexAtom) ?? getOrCreateScenesIndex();
 };

@@ -29,11 +29,12 @@ import {
 } from "../scenes/collections";
 import {
   ROOT_COLLECTION_ID,
+  SCENES_SIDEBAR_NAME,
   scenesIndexAtom,
   openCollectionIdAtom,
+  scenesSidebarPinnedAtom,
 } from "../scenes/state";
 
-import { SCENES_SIDEBAR_NAME } from "./AppScenesSidebar";
 import { SceneCard } from "./SceneCard";
 import { dashboardIcon, folderIcon } from "./ScenesTab";
 
@@ -57,6 +58,7 @@ export const CollectionDashboard = () => {
   const [openCollectionId, setOpenCollectionId] = useAtom(openCollectionIdAtom);
   const scenesIndex = useAtomValue(scenesIndexAtom);
   const isCollaborating = useAtomValue(isCollaboratingAtom);
+  const isSidebarPinned = useAtomValue(scenesSidebarPinnedAtom);
   // the sidebar stacks above the overlay — inset the overlay so its content
   // isn't hidden underneath
   const isScenesSidebarOpen =
@@ -308,6 +310,12 @@ export const CollectionDashboard = () => {
               onOpen={() => {
                 switchToScene(scene.id, excalidrawAPI);
                 setOpenCollectionId(null);
+                if (!isSidebarPinned) {
+                  excalidrawAPI.toggleSidebar({
+                    name: SCENES_SIDEBAR_NAME,
+                    force: false,
+                  });
+                }
               }}
               onRenameStart={() => setRenamingSceneId(scene.id)}
               onRenameCommit={(name) => {

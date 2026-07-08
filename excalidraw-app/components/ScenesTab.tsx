@@ -24,8 +24,10 @@ import {
 import { searchScenes } from "../scenes/search";
 import {
   ROOT_COLLECTION_ID,
+  SCENES_SIDEBAR_NAME,
   scenesIndexAtom,
   openCollectionIdAtom,
+  scenesSidebarPinnedAtom,
 } from "../scenes/state";
 
 import { useScenePreview } from "./useScenePreview";
@@ -75,6 +77,7 @@ export const ScenesTab = () => {
   const excalidrawAPI = useExcalidrawAPI();
   const scenesIndex = useAtomValue(scenesIndexAtom);
   const isCollaborating = useAtomValue(isCollaboratingAtom);
+  const isSidebarPinned = useAtomValue(scenesSidebarPinnedAtom);
   const setOpenCollectionId = useSetAtom(openCollectionIdAtom);
 
   const [dropTargetId, setDropTargetId] = useState<OpenCollectionId | null>(
@@ -175,6 +178,12 @@ export const ScenesTab = () => {
                     switchToScene(meta.id, excalidrawAPI);
                     // close any open dashboard overlay so the scene is visible
                     setOpenCollectionId(null);
+                    if (!isSidebarPinned) {
+                      excalidrawAPI.toggleSidebar({
+                        name: SCENES_SIDEBAR_NAME,
+                        force: false,
+                      });
+                    }
                   }
                 }}
               >

@@ -2,9 +2,18 @@ import { KEYS } from "@excalidraw/common";
 import { CaptureUpdateAction } from "@excalidraw/excalidraw";
 import { API } from "@excalidraw/excalidraw/tests/helpers/api";
 import { Keyboard } from "@excalidraw/excalidraw/tests/helpers/ui";
-import { act, render, waitFor } from "@excalidraw/excalidraw/tests/test-utils";
+import {
+  act,
+  fireEvent,
+  render,
+  waitFor,
+} from "@excalidraw/excalidraw/tests/test-utils";
 
-import { ROOT_COLLECTION_ID, openCollectionIdAtom } from "../scenes/state";
+import {
+  ROOT_COLLECTION_ID,
+  openCollectionIdAtom,
+  scenesSidebarPinnedAtom,
+} from "../scenes/state";
 import { appJotaiStore } from "../app-jotai";
 import { SCENES_SIDEBAR_NAME } from "../components/AppScenesSidebar";
 
@@ -108,6 +117,45 @@ describe("CollectionDashboard", () => {
     await waitFor(() => {
       expect(document.querySelector(".collection-dashboard")).toBeNull();
     });
+  });
+
+  it("opening a scene closes the sidebar when unpinned", async () => {
+    await render(<ExcalidrawApp />);
+
+    act(() => {
+      h.app.toggleSidebar({ name: SCENES_SIDEBAR_NAME, force: true });
+    });
+    await openDashboard();
+
+    fireEvent.click(document.querySelector(".scene-card")!);
+
+    await waitFor(() => {
+      expect(document.querySelector(".collection-dashboard")).toBeNull();
+      expect(h.state.openSidebar).toBeNull();
+    });
+  });
+
+  it("opening a scene keeps the sidebar open when pinned", async () => {
+    await render(<ExcalidrawApp />);
+
+    act(() => {
+      appJotaiStore.set(scenesSidebarPinnedAtom, true);
+      h.app.toggleSidebar({ name: SCENES_SIDEBAR_NAME, force: true });
+    });
+    try {
+      await openDashboard();
+
+      fireEvent.click(document.querySelector(".scene-card")!);
+
+      await waitFor(() => {
+        expect(document.querySelector(".collection-dashboard")).toBeNull();
+      });
+      expect(h.state.openSidebar).toEqual({ name: SCENES_SIDEBAR_NAME });
+    } finally {
+      act(() => {
+        appJotaiStore.set(scenesSidebarPinnedAtom, false);
+      });
+    }
   });
 
   it("still closes on Escape", async () => {
