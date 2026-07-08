@@ -4,12 +4,10 @@ import {
   CloseIcon,
   LoadIcon,
   PlusIcon,
-  TrashIcon,
-  pencilIcon,
 } from "@excalidraw/excalidraw/components/icons";
 import { useUIAppState } from "@excalidraw/excalidraw/context/ui-appState";
 import clsx from "clsx";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 
 import { useAtom, useAtomValue } from "../app-jotai";
 import { isCollaboratingAtom } from "../collab/Collab";
@@ -22,12 +20,7 @@ import {
   renameScene,
   switchToScene,
 } from "../scenes/actions";
-import {
-  deleteCollection,
-  getCollections,
-  getSceneCollectionId,
-  renameCollection,
-} from "../scenes/collections";
+import { getCollections, getSceneCollectionId } from "../scenes/collections";
 import {
   ROOT_COLLECTION_ID,
   scenesIndexAtom,
@@ -46,7 +39,7 @@ import type { SceneId } from "../scenes/storage";
 const titleUnderline = (
   <svg
     className="collection-dashboard__title-underline"
-    viewBox="0 0 120 6"
+    viewBox="0 0 120 7"
     preserveAspectRatio="none"
     aria-hidden="true"
   >
@@ -54,7 +47,7 @@ const titleUnderline = (
       d="M2 4 C 30 1.5, 55 5.5, 82 3 S 112 2.5, 118 3.5"
       fill="none"
       stroke="currentColor"
-      strokeWidth="2"
+      strokeWidth="3"
       strokeLinecap="round"
     />
   </svg>
@@ -70,20 +63,9 @@ export const CollectionDashboard = () => {
   const isScenesSidebarOpen =
     useUIAppState().openSidebar?.name === SCENES_SIDEBAR_NAME;
 
-  const [isRenaming, setIsRenaming] = useState(false);
-  const [renameValue, setRenameValue] = useState("");
-  const [isPendingDelete, setIsPendingDelete] = useState(false);
-
   const [renamingSceneId, setRenamingSceneId] = useState<SceneId | null>(null);
   const [pendingDeleteSceneId, setPendingDeleteSceneId] =
     useState<SceneId | null>(null);
-
-  const renameInputRef = useRef<HTMLInputElement>(null);
-  useEffect(() => {
-    if (isRenaming) {
-      renameInputRef.current?.select();
-    }
-  }, [isRenaming]);
 
   const isOpen = openCollectionId !== null;
   const collections = getCollections(scenesIndex);
@@ -102,8 +84,6 @@ export const CollectionDashboard = () => {
 
   // reset transient edit state when switching collections or closing
   useEffect(() => {
-    setIsRenaming(false);
-    setIsPendingDelete(false);
     setRenamingSceneId(null);
     setPendingDeleteSceneId(null);
   }, [openCollectionId]);
@@ -121,14 +101,10 @@ export const CollectionDashboard = () => {
         // capture on window runs before the editor's scene-level handler,
         // so the canvas doesn't also react
         event.stopPropagation();
-        if (isRenaming) {
+        if (renamingSceneId) {
           // it also runs before the rename input's own handler — cancel the
           // rename instead of closing the dashboard
-          setIsRenaming(false);
-        } else if (renamingSceneId) {
           setRenamingSceneId(null);
-        } else if (isPendingDelete) {
-          setIsPendingDelete(false);
         } else if (pendingDeleteSceneId) {
           setPendingDeleteSceneId(null);
         } else {
@@ -140,25 +116,11 @@ export const CollectionDashboard = () => {
     return () => {
       window.removeEventListener("keydown", onKeyDown, { capture: true });
     };
-  }, [
-    isOpen,
-    isRenaming,
-    isPendingDelete,
-    renamingSceneId,
-    pendingDeleteSceneId,
-    setOpenCollectionId,
-  ]);
+  }, [isOpen, renamingSceneId, pendingDeleteSceneId, setOpenCollectionId]);
 
   if (!excalidrawAPI || !isOpen || isDangling) {
     return null;
   }
-
-  const commitRename = () => {
-    if (collection) {
-      renameCollection(collection.id, renameValue);
-    }
-    setIsRenaming(false);
-  };
 
   const pendingDeleteScene = scenesIndex.scenes.find(
     (scene) => scene.id === pendingDeleteSceneId,
@@ -171,7 +133,9 @@ export const CollectionDashboard = () => {
     .filter(
       (scene) => getSceneCollectionId(scene, collections) === collectionId,
     )
-    .sort((a, b) => b.updatedAt - a.updatedAt);
+    // stable creation order — a newly created scene lands last, next to the
+    // ghost "New scene" card
+    .sort((a, b) => a.createdAt - b.createdAt);
 
   const handleCreateScene = () => {
     const meta = createScene(collectionId);
@@ -189,32 +153,17 @@ export const CollectionDashboard = () => {
       data-prevent-outside-click
     >
       <div className="collection-dashboard__header">
-        {collection && isRenaming ? (
-          <input
-            ref={renameInputRef}
-            className="collection-dashboard__rename-input"
-            value={renameValue}
-            onChange={(event) => setRenameValue(event.target.value)}
-            onBlur={commitRename}
-            onKeyDown={(event) => {
-              if (event.key === "Enter") {
-                commitRename();
-              }
-            }}
-          />
-        ) : (
-          <div className="collection-dashboard__heading">
-            <div className="collection-dashboard__title-wrap">
-              <div className="collection-dashboard__title excalifont">
-                {collection ? collection.name : "Dashboard"}
-              </div>
-              {titleUnderline}
+        <div className="collection-dashboard__heading">
+          <div className="collection-dashboard__title-wrap">
+            <div className="collection-dashboard__title excalifont">
+              {collection ? collection.name : "Dashboard"}
             </div>
-            <div className="collection-dashboard__subtitle">
-              {scenes.length === 1 ? "1 scene" : `${scenes.length} scenes`}
-            </div>
+            {titleUnderline}
           </div>
-        )}
+          <div className="collection-dashboard__subtitle">
+            {scenes.length === 1 ? "1 scene" : `${scenes.length} scenes`}
+          </div>
+        </div>
         <div className="collection-dashboard__header-actions">
           <button
             type="button"
@@ -231,39 +180,6 @@ export const CollectionDashboard = () => {
             {LoadIcon}
             Import scene
           </button>
-          <button
-            type="button"
-            className="collection-dashboard__button"
-            title="Add new scene"
-            disabled={isCollaborating}
-            onClick={handleCreateScene}
-          >
-            {PlusIcon}
-            New scene
-          </button>
-          {collection && !isRenaming && (
-            <>
-              <button
-                type="button"
-                className="collection-dashboard__action"
-                title="Rename collection"
-                onClick={() => {
-                  setRenameValue(collection.name);
-                  setIsRenaming(true);
-                }}
-              >
-                {pencilIcon}
-              </button>
-              <button
-                type="button"
-                className="collection-dashboard__action"
-                title="Delete collection"
-                onClick={() => setIsPendingDelete(true)}
-              >
-                {TrashIcon}
-              </button>
-            </>
-          )}
           <button
             type="button"
             className="collection-dashboard__close"
@@ -355,22 +271,6 @@ export const CollectionDashboard = () => {
           <p>
             Are you sure you want to delete <b>{pendingDeleteScene.name}</b>?
             This cannot be undone.
-          </p>
-        </ConfirmDialog>
-      )}
-      {isPendingDelete && collection && (
-        <ConfirmDialog
-          title="Delete collection"
-          onConfirm={() => {
-            deleteCollection(collection.id);
-            setIsPendingDelete(false);
-            setOpenCollectionId(null);
-          }}
-          onCancel={() => setIsPendingDelete(false)}
-        >
-          <p>
-            Are you sure you want to delete <b>{collection.name}</b>? Its scenes
-            will move back to Dashboard.
           </p>
         </ConfirmDialog>
       )}

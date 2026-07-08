@@ -1,5 +1,11 @@
 import { useExcalidrawAPI } from "@excalidraw/excalidraw";
-import { PlusIcon, searchIcon } from "@excalidraw/excalidraw/components/icons";
+import ConfirmDialog from "@excalidraw/excalidraw/components/ConfirmDialog";
+import {
+  PlusIcon,
+  TrashIcon,
+  pencilIcon,
+  searchIcon,
+} from "@excalidraw/excalidraw/components/icons";
 import clsx from "clsx";
 import { useState } from "react";
 
@@ -11,8 +17,9 @@ import {
   SCENE_DRAG_MIME,
   assignSceneToCollection,
   createCollection,
+  deleteCollection,
   getCollections,
-  getSceneCollectionId,
+  renameCollection,
 } from "../scenes/collections";
 import { searchScenes } from "../scenes/search";
 import {
@@ -57,6 +64,14 @@ export const ScenesTab = () => {
   );
   const [searchQuery, setSearchQuery] = useState("");
 
+  const [renamingCollectionId, setRenamingCollectionId] = useState<
+    string | null
+  >(null);
+  const [renameValue, setRenameValue] = useState("");
+  const [pendingDeleteCollectionId, setPendingDeleteCollectionId] = useState<
+    string | null
+  >(null);
+
   if (!excalidrawAPI) {
     return null;
   }
@@ -65,14 +80,14 @@ export const ScenesTab = () => {
     (a, b) => a.createdAt - b.createdAt,
   );
 
-  const sceneCountByCollection = new Map<string | null, number>();
-  for (const scene of scenesIndex.scenes) {
-    const collectionId = getSceneCollectionId(scene, collections);
-    sceneCountByCollection.set(
-      collectionId,
-      (sceneCountByCollection.get(collectionId) ?? 0) + 1,
-    );
-  }
+  const pendingDeleteCollection = collections.find(
+    (collection) => collection.id === pendingDeleteCollectionId,
+  );
+
+  const commitRename = (collectionId: string) => {
+    renameCollection(collectionId, renameValue);
+    setRenamingCollectionId(null);
+  };
 
   const isSearching = Boolean(searchQuery.trim());
   const searchResults = isSearching
@@ -186,9 +201,6 @@ export const ScenesTab = () => {
           >
             {dashboardIcon}
             <span className="scenes-tab__row-label">Dashboard</span>
-            <span className="scenes-tab__count">
-              {sceneCountByCollection.get(null) ?? 0}
-            </span>
           </div>
           <div className="scenes-tab__section-header">
             Collections
@@ -204,27 +216,76 @@ export const ScenesTab = () => {
             </button>
           </div>
           <div className="scenes-tab__collections">
-            {collections.map((collection) => (
-              <div
-                key={collection.id}
-                className={clsx("scenes-tab__collection", {
-                  "scenes-tab__collection--drop-target":
-                    dropTargetId === collection.id,
-                })}
-                onClick={() => setOpenCollectionId(collection.id)}
-                {...collectionDropHandlers(collection.id)}
-              >
-                <div className="scenes-tab__collection-name">
-                  {folderIcon}
-                  <span className="scenes-tab__row-label">
-                    {collection.name}
-                  </span>
+            {collections.map((collection) =>
+              collection.id === renamingCollectionId ? (
+                <div
+                  key={collection.id}
+                  className="scenes-tab__collection scenes-tab__collection--renaming"
+                >
+                  <div className="scenes-tab__collection-name">
+                    {folderIcon}
+                    <input
+                      className="scenes-tab__rename-input"
+                      value={renameValue}
+                      autoFocus
+                      onFocus={(event) => event.currentTarget.select()}
+                      onChange={(event) => setRenameValue(event.target.value)}
+                      onBlur={() => commitRename(collection.id)}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter") {
+                          commitRename(collection.id);
+                        } else if (event.key === "Escape") {
+                          // don't let the editor also react (e.g. close the
+                          // sidebar) — just cancel the rename
+                          event.stopPropagation();
+                          setRenamingCollectionId(null);
+                        }
+                      }}
+                    />
+                  </div>
                 </div>
-                <span className="scenes-tab__count">
-                  {sceneCountByCollection.get(collection.id) ?? 0}
-                </span>
-              </div>
-            ))}
+              ) : (
+                <div
+                  key={collection.id}
+                  className={clsx("scenes-tab__collection", {
+                    "scenes-tab__collection--drop-target":
+                      dropTargetId === collection.id,
+                  })}
+                  onClick={() => setOpenCollectionId(collection.id)}
+                  {...collectionDropHandlers(collection.id)}
+                >
+                  <div className="scenes-tab__collection-name">
+                    {folderIcon}
+                    <span className="scenes-tab__row-label">
+                      {collection.name}
+                    </span>
+                  </div>
+                  <div className="scenes-tab__row-actions">
+                    <button
+                      type="button"
+                      title="Rename collection"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        setRenameValue(collection.name);
+                        setRenamingCollectionId(collection.id);
+                      }}
+                    >
+                      {pencilIcon}
+                    </button>
+                    <button
+                      type="button"
+                      title="Delete collection"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        setPendingDeleteCollectionId(collection.id);
+                      }}
+                    >
+                      {TrashIcon}
+                    </button>
+                  </div>
+                </div>
+              ),
+            )}
             {!collections.length && (
               <div className="scenes-tab__empty">
                 <span className="excalifont">No collections yet</span>
@@ -235,6 +296,22 @@ export const ScenesTab = () => {
             )}
           </div>
         </>
+      )}
+      {pendingDeleteCollection && (
+        <ConfirmDialog
+          title="Delete collection"
+          onConfirm={() => {
+            deleteCollection(pendingDeleteCollection.id);
+            setPendingDeleteCollectionId(null);
+          }}
+          onCancel={() => setPendingDeleteCollectionId(null)}
+        >
+          <p>
+            Are you sure you want to delete{" "}
+            <b>{pendingDeleteCollection.name}</b>? Its scenes will move back to
+            Dashboard.
+          </p>
+        </ConfirmDialog>
       )}
     </div>
   );
