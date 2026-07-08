@@ -28,8 +28,11 @@ import {
   openCollectionIdAtom,
 } from "../scenes/state";
 
+import { useScenePreview } from "./useScenePreview";
+
 import "./ScenesTab.scss";
 
+import type { SceneMeta } from "../scenes/storage";
 import type { OpenCollectionId } from "../scenes/state";
 
 const MS_IN_MINUTE = 60 * 1000;
@@ -51,6 +54,21 @@ export const formatRelativeTime = (timestamp: number) => {
     }
   }
   return "just now";
+};
+
+const SearchResultThumbnail = ({ meta }: { meta: SceneMeta }) => {
+  const { canvasHostRef, status } = useScenePreview(meta);
+  return (
+    <div className="scenes-tab__item-thumb">
+      <div
+        ref={canvasHostRef}
+        className={clsx("scenes-tab__item-thumb-canvas", {
+          "scenes-tab__item-thumb-canvas--hidden": status !== "ready",
+        })}
+      />
+      {status !== "ready" && scenesTabIcon}
+    </div>
+  );
 };
 
 export const ScenesTab = () => {
@@ -155,9 +173,12 @@ export const ScenesTab = () => {
                 onClick={() => {
                   if (!switchDisabled) {
                     switchToScene(meta.id, excalidrawAPI);
+                    // close any open dashboard overlay so the scene is visible
+                    setOpenCollectionId(null);
                   }
                 }}
               >
+                <SearchResultThumbnail meta={meta} />
                 <div className="scenes-tab__item-info">
                   <div className="scenes-tab__item-name">
                     {isActive && (

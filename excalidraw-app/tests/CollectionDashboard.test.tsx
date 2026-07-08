@@ -6,6 +6,7 @@ import { act, render, waitFor } from "@excalidraw/excalidraw/tests/test-utils";
 
 import { ROOT_COLLECTION_ID, openCollectionIdAtom } from "../scenes/state";
 import { appJotaiStore } from "../app-jotai";
+import { SCENES_SIDEBAR_NAME } from "../components/AppScenesSidebar";
 
 import ExcalidrawApp from "../App";
 
@@ -90,6 +91,22 @@ describe("CollectionDashboard", () => {
     cut();
     await waitFor(() => {
       expect(h.elements[0].isDeleted).toBe(true);
+    });
+  });
+
+  it("closes when the scenes sidebar closes", async () => {
+    await render(<ExcalidrawApp />);
+
+    act(() => {
+      h.app.toggleSidebar({ name: SCENES_SIDEBAR_NAME, force: true });
+    });
+    await openDashboard();
+
+    act(() => {
+      h.app.toggleSidebar({ name: SCENES_SIDEBAR_NAME, force: false });
+    });
+    await waitFor(() => {
+      expect(document.querySelector(".collection-dashboard")).toBeNull();
     });
   });
 

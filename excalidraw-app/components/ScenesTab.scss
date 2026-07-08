@@ -22,7 +22,9 @@
       // has breathing room when focused
       padding: 0.5rem 0.75rem;
       border-radius: var(--border-radius-lg);
-      background-color: var(--color-surface-high);
+      // grayer than surface-high (which is purple-tinted) so the box reads
+      // as an input rather than a hovered row
+      background-color: var(--color-surface-low);
 
       &:focus-within svg {
         color: var(--color-primary);
@@ -157,7 +159,9 @@
     &__rename-input {
       flex: 1;
       min-width: 0;
-      font-size: 0.875rem;
+      // inputs don't inherit the app font by default — inherit everything
+      // from the row so swapping label ↔ input is visually seamless
+      font: inherit;
       // same inner padding as the search input; negative block margin keeps
       // the row from growing while editing
       padding: 0.25rem 0.375rem;
@@ -363,6 +367,45 @@
     &__item-time {
       font-size: 0.6875rem;
       color: var(--scenes-text-secondary);
+    }
+
+    // small scene snapshot on the search-result row's leading edge
+    &__item-thumb {
+      flex: 0 0 auto;
+      width: 3.25rem;
+      height: 2.4375rem; // 4:3, matching the dashboard cards
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid var(--default-border-color);
+      border-radius: var(--border-radius-md);
+      background-color: var(--island-bg-color);
+      color: var(--scenes-text-secondary);
+      overflow: hidden;
+
+      // loading/empty/error fallback
+      > svg {
+        width: 1rem;
+        height: 1rem;
+      }
+    }
+
+    &__item-thumb-canvas {
+      width: 100%;
+      height: 100%;
+
+      &--hidden {
+        display: none;
+      }
+
+      canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+        // the snapshot is exported at the box's aspect ratio; cover absorbs
+        // any drift from the box resizing after the export
+        object-fit: cover;
+      }
     }
 
     &__item-snippet {

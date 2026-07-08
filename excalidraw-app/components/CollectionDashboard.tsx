@@ -8,7 +8,7 @@ import {
 } from "@excalidraw/excalidraw/components/icons";
 import { useUIAppState } from "@excalidraw/excalidraw/context/ui-appState";
 import clsx from "clsx";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { useAtom, useAtomValue } from "../app-jotai";
 import { isCollaboratingAtom } from "../collab/Collab";
@@ -87,6 +87,17 @@ export const CollectionDashboard = () => {
       setOpenCollectionId(null);
     }
   }, [isOpen, isDangling, setOpenCollectionId]);
+
+  // the dashboard is opened from the scenes sidebar — closing the sidebar
+  // takes the overlay with it (on the close transition only, so a dashboard
+  // opened by other means isn't affected)
+  const wasScenesSidebarOpen = useRef(isScenesSidebarOpen);
+  useEffect(() => {
+    if (wasScenesSidebarOpen.current && !isScenesSidebarOpen) {
+      setOpenCollectionId(null);
+    }
+    wasScenesSidebarOpen.current = isScenesSidebarOpen;
+  }, [isScenesSidebarOpen, setOpenCollectionId]);
 
   // reset transient edit state when switching collections or closing
   useEffect(() => {
