@@ -47,5 +47,14 @@ services:
     restart: unless-stopped
 
   excalidraw-room:
-    image: excalidraw/excalidraw-room:latest
+    # Built from source: the published excalidraw/excalidraw-room image is
+    # amd64-only and crash-loops on ARM hosts.
+    build:
+      context: https://github.com/excalidraw/excalidraw-room.git
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://localhost"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
     restart: unless-stopped
