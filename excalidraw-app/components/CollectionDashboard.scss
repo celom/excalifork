@@ -17,7 +17,6 @@
     // a notch darker than the canvas (--default-bg-color: #121212) — the
     // dark surface-* vars are all lighter, so no var fits here
     --dashboard-bg-color: #0d0d0d;
-    --dashboard-dot-color: rgba(255, 255, 255, 0.055);
     --dashboard-separator-color: var(--color-gray-80);
     --scene-card-hover-shadow: 0 6px 16px rgba(0, 0, 0, 0.45);
   }
@@ -26,7 +25,6 @@
     --scenes-text-secondary: var(--color-gray-60);
     // a notch darker than the canvas (--default-bg-color: #fff)
     --dashboard-bg-color: var(--color-surface-mid);
-    --dashboard-dot-color: rgba(90, 90, 130, 0.16);
     --dashboard-separator-color: var(--color-gray-40);
     --scene-card-hover-shadow: var(--shadow-island);
 
@@ -40,12 +38,6 @@
     flex-direction: column;
     gap: 0.5rem;
     background-color: var(--dashboard-bg-color);
-    // dot grid evoking the drawing canvas
-    background-image: radial-gradient(
-      var(--dashboard-dot-color) 1px,
-      transparent 1.5px
-    );
-    background-size: 22px 22px;
     animation: scenes-dashboard-in 0.15s ease;
 
     // the scenes sidebar (left) stacks above the overlay; inset by the
