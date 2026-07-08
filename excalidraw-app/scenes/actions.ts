@@ -289,6 +289,7 @@ export const duplicateScene = async (id: SceneId) => {
         name: `${sourceMeta.name} (copy)`,
         createdAt: now,
         updatedAt: now,
+        collectionId: sourceMeta.collectionId,
       },
     ],
   });
