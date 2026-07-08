@@ -73,6 +73,20 @@ export const renameCollection = (id: CollectionId, name: string) => {
   });
 };
 
+/** `null` clears the override so the default folder icon renders */
+export const setCollectionIcon = (id: CollectionId, icon: string | null) => {
+  const index = getScenesIndex();
+  if (!getCollections(index).some((c) => c.id === id)) {
+    return;
+  }
+  setScenesIndex({
+    ...index,
+    collections: getCollections(index).map((c) =>
+      c.id === id ? { ...c, icon: icon ?? undefined } : c,
+    ),
+  });
+};
+
 /** contained scenes move back to the root "Dashboard" */
 export const deleteCollection = (id: CollectionId) => {
   const index = getScenesIndex();

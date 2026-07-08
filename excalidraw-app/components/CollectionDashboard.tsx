@@ -42,8 +42,9 @@ import {
 } from "../scenes/state";
 
 import { ArchiveConflictDialog } from "./ArchiveConflictDialog";
+import { getCollectionIcon } from "./collectionIcons";
 import { SceneCard } from "./SceneCard";
-import { dashboardIcon, folderIcon } from "./ScenesTab";
+import { dashboardIcon } from "./ScenesTab";
 
 import "./CollectionDashboard.scss";
 
@@ -299,7 +300,7 @@ export const CollectionDashboard = () => {
       <div className="collection-dashboard__header">
         <div className="collection-dashboard__heading">
           <div className="collection-dashboard__title">
-            {collection ? folderIcon : dashboardIcon}
+            {collection ? getCollectionIcon(collection.icon) : dashboardIcon}
             <span>{collection ? collection.name : "Dashboard"}</span>
           </div>
           <div className="collection-dashboard__subtitle">

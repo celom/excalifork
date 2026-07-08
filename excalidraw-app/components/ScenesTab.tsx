@@ -1,5 +1,6 @@
 import { useExcalidrawAPI } from "@excalidraw/excalidraw";
 import ConfirmDialog from "@excalidraw/excalidraw/components/ConfirmDialog";
+import { Popover } from "@excalidraw/excalidraw/components/Popover";
 import {
   PlusIcon,
   TrashIcon,
@@ -20,6 +21,7 @@ import {
   deleteCollection,
   getCollections,
   renameCollection,
+  setCollectionIcon,
 } from "../scenes/collections";
 import { searchScenes } from "../scenes/search";
 import {
@@ -30,6 +32,11 @@ import {
   scenesSidebarPinnedAtom,
 } from "../scenes/state";
 
+import {
+  COLLECTION_ICONS,
+  DEFAULT_COLLECTION_ICON,
+  getCollectionIcon,
+} from "./collectionIcons";
 import { FolderSyncControl } from "./FolderSyncControl";
 import { useScenePreview } from "./useScenePreview";
 
@@ -93,6 +100,11 @@ export const ScenesTab = () => {
   const [pendingDeleteCollectionId, setPendingDeleteCollectionId] = useState<
     string | null
   >(null);
+  const [iconPicker, setIconPicker] = useState<{
+    collectionId: string;
+    top: number;
+    left: number;
+  } | null>(null);
 
   if (!excalidrawAPI) {
     return null;
@@ -251,7 +263,7 @@ export const ScenesTab = () => {
                   className="scenes-tab__collection scenes-tab__collection--renaming"
                 >
                   <div className="scenes-tab__collection-name">
-                    {folderIcon}
+                    {getCollectionIcon(collection.icon)}
                     <input
                       className="scenes-tab__rename-input"
                       value={renameValue}
@@ -283,7 +295,23 @@ export const ScenesTab = () => {
                   {...collectionDropHandlers(collection.id)}
                 >
                   <div className="scenes-tab__collection-name">
-                    {folderIcon}
+                    <button
+                      type="button"
+                      className="scenes-tab__collection-icon"
+                      title="Change icon"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        const rect =
+                          event.currentTarget.getBoundingClientRect();
+                        setIconPicker({
+                          collectionId: collection.id,
+                          top: rect.bottom + 4,
+                          left: rect.left,
+                        });
+                      }}
+                    >
+                      {getCollectionIcon(collection.icon)}
+                    </button>
                     <span className="scenes-tab__row-label">
                       {collection.name}
                     </span>
@@ -326,6 +354,52 @@ export const ScenesTab = () => {
         </>
       )}
       <FolderSyncControl />
+      {iconPicker && (
+        <Popover
+          className="scenes-tab__icon-picker"
+          top={iconPicker.top}
+          left={iconPicker.left}
+          fitInViewport
+          onCloseRequest={() => setIconPicker(null)}
+        >
+          <div
+            className="scenes-tab__icon-picker-grid"
+            onKeyDown={(event) => {
+              if (event.key === "Escape") {
+                // don't let the editor also react (e.g. close the sidebar)
+                event.stopPropagation();
+                setIconPicker(null);
+              }
+            }}
+          >
+            {COLLECTION_ICONS.map(({ key, label, icon }) => (
+              <button
+                key={key}
+                type="button"
+                title={label}
+                className={clsx("scenes-tab__icon-picker-option", {
+                  "scenes-tab__icon-picker-option--active":
+                    key ===
+                    (collections.find(
+                      (collection) => collection.id === iconPicker.collectionId,
+                    )?.icon ?? DEFAULT_COLLECTION_ICON),
+                })}
+                onClick={() => {
+                  // the default is stored as "no override" to keep the index
+                  // lean and let a future default change apply retroactively
+                  setCollectionIcon(
+                    iconPicker.collectionId,
+                    key === DEFAULT_COLLECTION_ICON ? null : key,
+                  );
+                  setIconPicker(null);
+                }}
+              >
+                {icon}
+              </button>
+            ))}
+          </div>
+        </Popover>
+      )}
       {pendingDeleteCollection && (
         <ConfirmDialog
           title="Delete collection"
@@ -378,20 +452,5 @@ export const dashboardIcon = (
     <path d="M5 16h4a1 1 0 0 1 1 1v2a1 1 0 0 1 -1 1h-4a1 1 0 0 1 -1 -1v-2a1 1 0 0 1 1 -1" />
     <path d="M15 12h4a1 1 0 0 1 1 1v6a1 1 0 0 1 -1 1h-4a1 1 0 0 1 -1 -1v-6a1 1 0 0 1 1 -1" />
     <path d="M15 4h4a1 1 0 0 1 1 1v2a1 1 0 0 1 -1 1h-4a1 1 0 0 1 -1 -1v-2a1 1 0 0 1 1 -1" />
-  </svg>
-);
-
-// tabler-icons: folder (no fitting icon in the editor package)
-export const folderIcon = (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
-    <path d="M5 4h4l3 3h7a2 2 0 0 1 2 2v8a2 2 0 0 1 -2 2h-14a2 2 0 0 1 -2 -2v-11a2 2 0 0 1 2 -2" />
   </svg>
 );

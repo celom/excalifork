@@ -32,6 +32,8 @@ export type CollectionMeta = {
   id: CollectionId;
   name: string;
   createdAt: number;
+  /** key into COLLECTION_ICONS — missing/unknown renders the default folder */
+  icon?: string;
 };
 
 export type SceneMeta = {
