@@ -352,7 +352,9 @@ const initializeScene = async (opts: {
           ...restoreAppState(
             {
               ...scene?.appState,
-              theme: localDataState?.appState?.theme || scene?.appState?.theme,
+              // theme is a user-wide setting — never restore it from
+              // persisted or remote scene state
+              theme: excalidrawAPI.getAppState().theme,
             },
             excalidrawAPI.getAppState(),
           ),

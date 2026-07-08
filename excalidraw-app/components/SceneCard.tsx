@@ -37,6 +37,11 @@ export const SceneCard = ({
   isActive,
   disabled,
   isRenaming,
+  isDragging,
+  dropPosition,
+  onDragStart,
+  onDragEnd,
+  dropHandlers,
   onOpen,
   onRenameStart,
   onRenameCommit,
@@ -49,6 +54,17 @@ export const SceneCard = ({
   isActive: boolean;
   disabled: boolean;
   isRenaming: boolean;
+  /** this card is the source of an in-progress reorder drag */
+  isDragging: boolean;
+  /** side a dragged card would be inserted at, or null */
+  dropPosition: "before" | "after" | null;
+  onDragStart: () => void;
+  onDragEnd: () => void;
+  /** reorder drop-target wiring — only set while another card is dragged */
+  dropHandlers?: Pick<
+    React.DOMAttributes<HTMLDivElement>,
+    "onDragOver" | "onDragLeave" | "onDrop"
+  >;
   onOpen: () => void;
   onRenameStart: () => void;
   onRenameCommit: (name: string) => void;
@@ -188,6 +204,9 @@ export const SceneCard = ({
       className={clsx("scene-card", {
         "scene-card--active": isActive,
         "scene-card--disabled": disabled,
+        "scene-card--dragging": isDragging,
+        "scene-card--drop-before": dropPosition === "before",
+        "scene-card--drop-after": dropPosition === "after",
       })}
       style={{ "--scene-card-index": index } as React.CSSProperties}
       // dragging interferes with text selection in the rename input
@@ -195,7 +214,10 @@ export const SceneCard = ({
       onDragStart={(event) => {
         event.dataTransfer.setData(SCENE_DRAG_MIME, meta.id);
         event.dataTransfer.effectAllowed = "move";
+        onDragStart();
       }}
+      onDragEnd={onDragEnd}
+      {...dropHandlers}
       onClick={() => {
         if (!disabled && !isRenaming) {
           onOpen();

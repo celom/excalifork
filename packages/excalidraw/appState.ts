@@ -151,7 +151,9 @@ const APP_STATE_STORAGE_CONF = (<
 >(config: { [K in keyof T]: K extends keyof AppState ? T[K] : never }) =>
   config)({
   showWelcomeScreen: { browser: true, export: false, server: false },
-  theme: { browser: true, export: false, server: false },
+  // theme is a user-wide setting (see useHandleAppTheme in excalidraw-app),
+  // not per-scene state — don't persist it with the scene
+  theme: { browser: false, export: false, server: false },
   collaborators: { browser: false, export: false, server: false },
   currentItemBackgroundColor: { browser: true, export: false, server: false },
   currentItemEndArrowhead: { browser: true, export: false, server: false },

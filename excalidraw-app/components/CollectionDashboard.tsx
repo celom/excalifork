@@ -1,3 +1,4 @@
+import { isInputLike } from "@excalidraw/common";
 import { useExcalidrawAPI } from "@excalidraw/excalidraw";
 import ConfirmDialog from "@excalidraw/excalidraw/components/ConfirmDialog";
 import {
@@ -18,9 +19,14 @@ import {
   duplicateScene,
   importScene,
   renameScene,
+  reorderScene,
   switchToScene,
 } from "../scenes/actions";
-import { getCollections, getSceneCollectionId } from "../scenes/collections";
+import {
+  SCENE_DRAG_MIME,
+  getCollections,
+  getSceneCollectionId,
+} from "../scenes/collections";
 import {
   ROOT_COLLECTION_ID,
   scenesIndexAtom,
@@ -35,6 +41,17 @@ import "./CollectionDashboard.scss";
 
 import type { SceneId } from "../scenes/storage";
 
+type DropPosition = "before" | "after";
+
+/** maps the pointer's visual half of the card to a document-order position
+ * (the grid flows right-to-left in RTL) */
+const dropPositionForEvent = (event: React.DragEvent): DropPosition => {
+  const rect = event.currentTarget.getBoundingClientRect();
+  const inLeftHalf = event.clientX < rect.left + rect.width / 2;
+  const isRTL = getComputedStyle(event.currentTarget).direction === "rtl";
+  return inLeftHalf !== isRTL ? "before" : "after";
+};
+
 export const CollectionDashboard = () => {
   const excalidrawAPI = useExcalidrawAPI();
   const [openCollectionId, setOpenCollectionId] = useAtom(openCollectionIdAtom);
@@ -48,6 +65,13 @@ export const CollectionDashboard = () => {
   const [renamingSceneId, setRenamingSceneId] = useState<SceneId | null>(null);
   const [pendingDeleteSceneId, setPendingDeleteSceneId] =
     useState<SceneId | null>(null);
+
+  // card being dragged for reorder, and where it would land
+  const [draggingSceneId, setDraggingSceneId] = useState<SceneId | null>(null);
+  const [dropTarget, setDropTarget] = useState<{
+    sceneId: SceneId;
+    position: DropPosition;
+  } | null>(null);
 
   const isOpen = openCollectionId !== null;
   const collections = getCollections(scenesIndex);
@@ -68,6 +92,8 @@ export const CollectionDashboard = () => {
   useEffect(() => {
     setRenamingSceneId(null);
     setPendingDeleteSceneId(null);
+    setDraggingSceneId(null);
+    setDropTarget(null);
   }, [openCollectionId]);
 
   useEffect(() => {
@@ -92,11 +118,33 @@ export const CollectionDashboard = () => {
         } else {
           setOpenCollectionId(null);
         }
+      } else if (!isInputLike(event.target)) {
+        // the editor stays mounted (and listening for shortcuts on
+        // document) beneath the overlay — swallow every other key so
+        // Delete, tool hotkeys, arrow nudges etc. can't silently mutate
+        // the scene. Keys bound for the rename input must still bubble
+        // to React's root listener
+        event.stopPropagation();
+      }
+    };
+    // the editor also listens for clipboard events on document (cut
+    // deletes the selection!) — swallow those too. stopPropagation
+    // doesn't affect native defaults, so copy/paste inside the rename
+    // input (or copying selected dashboard text) keeps working
+    const onClipboard = (event: ClipboardEvent) => {
+      if (!isInputLike(event.target)) {
+        event.stopPropagation();
       }
     };
     window.addEventListener("keydown", onKeyDown, { capture: true });
+    window.addEventListener("copy", onClipboard, { capture: true });
+    window.addEventListener("cut", onClipboard, { capture: true });
+    window.addEventListener("paste", onClipboard, { capture: true });
     return () => {
       window.removeEventListener("keydown", onKeyDown, { capture: true });
+      window.removeEventListener("copy", onClipboard, { capture: true });
+      window.removeEventListener("cut", onClipboard, { capture: true });
+      window.removeEventListener("paste", onClipboard, { capture: true });
     };
   }, [isOpen, renamingSceneId, pendingDeleteSceneId, setOpenCollectionId]);
 
@@ -111,19 +159,66 @@ export const CollectionDashboard = () => {
   const collectionId =
     openCollectionId === ROOT_COLLECTION_ID ? null : openCollectionId;
 
-  const scenes = scenesIndex.scenes
-    .filter(
-      (scene) => getSceneCollectionId(scene, collections) === collectionId,
-    )
-    // stable creation order — a newly created scene lands last, next to the
-    // ghost "New scene" card
-    .sort((a, b) => a.createdAt - b.createdAt);
+  // index order — the user can reorder by dragging; a newly created scene
+  // appends last, next to the ghost "New scene" card
+  const scenes = scenesIndex.scenes.filter(
+    (scene) => getSceneCollectionId(scene, collections) === collectionId,
+  );
 
   const handleCreateScene = () => {
     const meta = createScene(collectionId);
     // let the user name the scene right away on its new card
     setRenamingSceneId(meta.id);
   };
+
+  const draggingIndex = draggingSceneId
+    ? scenes.findIndex((scene) => scene.id === draggingSceneId)
+    : -1;
+
+  // dropping a card right next to itself would change nothing — don't
+  // show an insertion bar there
+  const isNoopDrop = (targetIndex: number, position: DropPosition) =>
+    draggingIndex !== -1 &&
+    (position === "before"
+      ? targetIndex === draggingIndex + 1
+      : targetIndex === draggingIndex - 1);
+
+  const reorderDropHandlers = (sceneId: SceneId, sceneIndex: number) => ({
+    onDragOver: (event: React.DragEvent) => {
+      const position = dropPositionForEvent(event);
+      if (isNoopDrop(sceneIndex, position)) {
+        setDropTarget((current) =>
+          current?.sceneId === sceneId ? null : current,
+        );
+        return;
+      }
+      event.preventDefault();
+      event.dataTransfer.dropEffect = "move";
+      setDropTarget((current) =>
+        current?.sceneId === sceneId && current.position === position
+          ? current
+          : { sceneId, position },
+      );
+    },
+    onDragLeave: (event: React.DragEvent) => {
+      // ignore transitions into the card's own children
+      if (!event.currentTarget.contains(event.relatedTarget as Node)) {
+        setDropTarget((current) =>
+          current?.sceneId === sceneId ? null : current,
+        );
+      }
+    },
+    onDrop: (event: React.DragEvent) => {
+      event.preventDefault();
+      const draggedId = event.dataTransfer.getData(SCENE_DRAG_MIME);
+      const position = dropPositionForEvent(event);
+      if (draggedId && !isNoopDrop(sceneIndex, position)) {
+        reorderScene(draggedId, sceneId, position);
+      }
+      setDropTarget(null);
+      setDraggingSceneId(null);
+    },
+  });
 
   return (
     <div
@@ -185,6 +280,20 @@ export const CollectionDashboard = () => {
               isActive={scene.id === scenesIndex.activeSceneId}
               disabled={isCollaborating}
               isRenaming={scene.id === renamingSceneId}
+              isDragging={scene.id === draggingSceneId}
+              dropPosition={
+                dropTarget?.sceneId === scene.id ? dropTarget.position : null
+              }
+              onDragStart={() => setDraggingSceneId(scene.id)}
+              onDragEnd={() => {
+                setDraggingSceneId(null);
+                setDropTarget(null);
+              }}
+              dropHandlers={
+                draggingSceneId && draggingSceneId !== scene.id
+                  ? reorderDropHandlers(scene.id, index)
+                  : undefined
+              }
               onOpen={() => {
                 switchToScene(scene.id, excalidrawAPI);
                 setOpenCollectionId(null);

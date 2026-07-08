@@ -321,6 +321,30 @@
       cursor: not-allowed;
     }
 
+    // source card of an in-progress reorder drag
+    &--dragging {
+      opacity: 0.4;
+    }
+
+    // insertion bar drawn in the grid gap on the side the dragged card
+    // will land (offset box-shadow with negative spread — a pseudo-element
+    // would be clipped by the card's overflow: hidden)
+    &--drop-before {
+      box-shadow: -0.5625rem 0 0 -0.25rem var(--color-primary);
+
+      :root[dir="rtl"] & {
+        box-shadow: 0.5625rem 0 0 -0.25rem var(--color-primary);
+      }
+    }
+
+    &--drop-after {
+      box-shadow: 0.5625rem 0 0 -0.25rem var(--color-primary);
+
+      :root[dir="rtl"] & {
+        box-shadow: -0.5625rem 0 0 -0.25rem var(--color-primary);
+      }
+    }
+
     // the preview fills all the card space the footer doesn't use
     &__preview {
       flex: 1 1 auto;

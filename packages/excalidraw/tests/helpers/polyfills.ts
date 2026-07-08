@@ -2,13 +2,13 @@ import { URL } from "node:url";
 
 class ClipboardEvent {
   constructor(
-    type: "paste" | "copy",
+    type: "paste" | "copy" | "cut",
     eventInitDict: {
       clipboardData: DataTransfer;
     },
   ) {
     return Object.assign(
-      new Event("paste", {
+      new Event(type, {
         bubbles: true,
         cancelable: true,
         composed: true,

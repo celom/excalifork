@@ -97,6 +97,10 @@ export const applyStoredScene = async (
     // don't let the target scene's persisted state slam the sidebar shut
     // while the user is browsing scenes
     openSidebar: excalidrawAPI.getAppState().openSidebar,
+    // theme is a user-wide setting, not scene state — keep the current one
+    // (also neutralizes the theme scenes persisted before it was excluded
+    // from browser storage)
+    theme: excalidrawAPI.getAppState().theme,
     isLoading: false,
   };
 
@@ -293,6 +297,34 @@ export const duplicateScene = async (id: SceneId) => {
       },
     ],
   });
+};
+
+/**
+ * Moves a scene next to another one in the index — a pure index operation
+ * (the dashboard renders scenes in index order), so no collab gating and
+ * no save pausing.
+ */
+export const reorderScene = (
+  id: SceneId,
+  targetId: SceneId,
+  position: "before" | "after",
+) => {
+  const index = getScenesIndex();
+  const moved = index.scenes.find((scene) => scene.id === id);
+  if (!moved || id === targetId) {
+    return;
+  }
+  const scenes = index.scenes.filter((scene) => scene.id !== id);
+  const targetPosition = scenes.findIndex((scene) => scene.id === targetId);
+  if (targetPosition === -1) {
+    return;
+  }
+  scenes.splice(
+    position === "before" ? targetPosition : targetPosition + 1,
+    0,
+    moved,
+  );
+  setScenesIndex({ ...index, scenes });
 };
 
 export const deleteScene = async (
