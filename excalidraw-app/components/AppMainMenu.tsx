@@ -2,6 +2,8 @@ import { useExcalidrawAPI } from "@excalidraw/excalidraw";
 import {
   LoadIcon,
   downloadIcon,
+  GithubIcon,
+  BlueskyIcon,
 } from "@excalidraw/excalidraw/components/icons";
 import { MainMenu } from "@excalidraw/excalidraw/index";
 import React from "react";
@@ -59,6 +61,21 @@ export const AppMainMenu: React.FC<{
       <MainMenu.DefaultItems.SearchMenu />
       <MainMenu.DefaultItems.Help />
       <MainMenu.DefaultItems.ClearCanvas />
+      <MainMenu.Separator />
+      <MainMenu.ItemLink
+        icon={GithubIcon}
+        href="https://github.com/celom/excalidraw"
+        aria-label="GitHub"
+      >
+        GitHub
+      </MainMenu.ItemLink>
+      <MainMenu.ItemLink
+        icon={BlueskyIcon}
+        href="https://bsky.app/profile/mimoso.bsky.social"
+        aria-label="Bluesky"
+      >
+        Bluesky
+      </MainMenu.ItemLink>
       <MainMenu.Separator />
       <MainMenu.DefaultItems.Preferences />
       <MainMenu.DefaultItems.ToggleTheme allowSystemTheme theme={props.theme} />
