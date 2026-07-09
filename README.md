@@ -1,124 +1,63 @@
-<a href="https://excalidraw.com/" target="_blank" rel="noopener">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" alt="Excalidraw" srcset="https://excalidraw.nyc3.cdn.digitaloceanspaces.com/github/excalidraw_github_cover_2_dark.png" />
-    <img alt="Excalidraw" src="https://excalidraw.nyc3.cdn.digitaloceanspaces.com/github/excalidraw_github_cover_2.png" />
-  </picture>
-</a>
+# Excalifork
 
-<h4 align="center">
-  <a href="https://excalidraw.com">Excalidraw Editor</a> |
-  <a href="https://plus.excalidraw.com/blog">Blog</a> |
-  <a href="https://docs.excalidraw.com">Documentation</a> |
-  <a href="https://plus.excalidraw.com">Excalidraw+</a>
-</h4>
+A personal fork of [Excalidraw](https://github.com/excalidraw/excalidraw) focused on **local-first document management** and **easy self-hosting**.
 
-<div align="center">
-  <h2>
-    An open source virtual hand-drawn style whiteboard. </br>
-    Collaborative and end-to-end encrypted. </br>
-  <br />
-  </h2>
-</div>
+> [!IMPORTANT]
+> **This is not the official Excalidraw repository.** It is an independent fork and is not affiliated with or endorsed by the Excalidraw team. For the official editor, npm package, documentation, and Excalidraw+, go to [excalidraw/excalidraw](https://github.com/excalidraw/excalidraw), [excalidraw.com](https://excalidraw.com), and [docs.excalidraw.com](https://docs.excalidraw.com).
 
-<br />
-<p align="center">
-  <a href="https://github.com/excalidraw/excalidraw/blob/master/LICENSE">
-    <img alt="Excalidraw is released under the MIT license." src="https://img.shields.io/badge/license-MIT-blue.svg"  /></a>
-  <a href="https://www.npmjs.com/package/@excalidraw/excalidraw">
-    <img alt="npm downloads/month" src="https://img.shields.io/npm/dm/@excalidraw/excalidraw"  /></a>
-  <a href="https://docs.excalidraw.com/docs/introduction/contributing">
-    <img alt="PRs welcome!" src="https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat"  /></a>
-  <a href="https://discord.gg/UexuTaE">
-    <img alt="Chat on Discord" src="https://img.shields.io/discord/723672430744174682?color=738ad6&label=Chat%20on%20Discord&logo=discord&logoColor=ffffff&widget=false"/></a>
-  <a href="https://deepwiki.com/excalidraw/excalidraw">
-    <img alt="Ask DeepWiki" src="https://deepwiki.com/badge.svg" /></a>
-  <a href="https://twitter.com/excalidraw">
-    <img alt="Follow Excalidraw on Twitter" src="https://img.shields.io/twitter/follow/excalidraw.svg?label=follow+@excalidraw&style=social&logo=twitter"/></a>
-</p>
+## Why this fork exists
 
-<div align="center">
-  <figure>
-    <a href="https://excalidraw.com" target="_blank" rel="noopener">
-      <img src="https://excalidraw.nyc3.cdn.digitaloceanspaces.com/github%2Fproduct_showcase.png" alt="Product showcase" />
-    </a>
-    <figcaption>
-      <p align="center">
-        Create beautiful hand-drawn like diagrams, wireframes, or whatever you like.
-      </p>
-    </figcaption>
-  </figure>
-</div>
+Upstream Excalidraw is a superb whiteboard, but the hosted app treats your work as a single canvas at a time — organizing many drawings is left to Excalidraw+ or your filesystem. This fork adds that organization layer directly to the self-hostable app:
 
-## Features
+- 🗂️ **Scenes & collections** — manage multiple drawings ("scenes") from a built-in sidebar, grouped into collections with custom icons.
+- 🖼️ **Scene previews** — visual dashboard with live thumbnails, search, and drag-to-reorder.
+- 💾 **Local-first** — scenes are stored in your browser; import and export everything as an archive for backup or migration.
+- 📦 **Self-hosting first** — a ready-to-deploy Docker Compose setup (app + collaboration server), tested on ARM.
+- 🧹 **No upsells** — Excalidraw+ promotions and related components are removed.
 
-The Excalidraw editor (npm package) supports:
+Everything else — the editor, tools, real-time collaboration, end-to-end encryption, PWA/offline support — is inherited from upstream, which this fork tracks and merges regularly.
 
-- 💯&nbsp;Free & open-source.
-- 🎨&nbsp;Infinite, canvas-based whiteboard.
-- ✍️&nbsp;Hand-drawn like style.
-- 🌓&nbsp;Dark mode.
-- 🏗️&nbsp;Customizable.
-- 📷&nbsp;Image support.
-- 😀&nbsp;Shape libraries support.
-- 🌐&nbsp;Localization (i18n) support.
-- 🖼️&nbsp;Export to PNG, SVG & clipboard.
-- 💾&nbsp;Open format - export drawings as an `.excalidraw` json file.
-- ⚒️&nbsp;Wide range of tools - rectangle, circle, diamond, arrow, line, free-draw, eraser...
-- ➡️&nbsp;Arrow-binding & labeled arrows.
-- 🔙&nbsp;Undo / Redo.
-- 🔍&nbsp;Zoom and panning support.
+## Self-hosting
 
-## Excalidraw.com
-
-The app hosted at [excalidraw.com](https://excalidraw.com) is a minimal showcase of what you can build with Excalidraw. Its [source code](https://github.com/excalidraw/excalidraw/tree/master/excalidraw-app) is part of this repository as well, and the app features:
-
-- 📡&nbsp;PWA support (works offline).
-- 🤼&nbsp;Real-time collaboration.
-- 🔒&nbsp;End-to-end encryption.
-- 💾&nbsp;Local-first support (autosaves to the browser).
-- 🔗&nbsp;Shareable links (export to a readonly link you can share with others).
-
-We'll be adding these features as drop-in plugins for the npm package in the future.
-
-## Quick start
-
-**Note:** following instructions are for installing the Excalidraw [npm package](https://www.npmjs.com/package/@excalidraw/excalidraw) when integrating Excalidraw into your own app. To run the repository locally for development, please refer to our [Development Guide](https://docs.excalidraw.com/docs/introduction/development).
-
-Use `npm` or `yarn` to install the package.
+The repo ships with [`docker-compose.selfhost.yml`](./docker-compose.selfhost.yml), which builds the app plus the [excalidraw-room](https://github.com/excalidraw/excalidraw-room) collaboration server from source (the published room image is amd64-only; building from source works on ARM hosts too).
 
 ```bash
-npm install react react-dom @excalidraw/excalidraw
-# or
-yarn add react react-dom @excalidraw/excalidraw
+VITE_APP_WS_SERVER_URL=https://room.your-domain.com \
+  docker compose -f docker-compose.selfhost.yml up -d --build
 ```
 
-Check out our [documentation](https://docs.excalidraw.com/docs/@excalidraw/excalidraw/installation) for more details!
+Required configuration:
 
-## Contributing
+- `VITE_APP_WS_SERVER_URL` — the **public** URL you assign to the `excalidraw-room` service. The browser connects to it directly, so it must be reachable from outside, not the internal compose hostname.
 
-- Missing something or found a bug? [Report here](https://github.com/excalidraw/excalidraw/issues).
-- Want to contribute? Check out our [contribution guide](https://docs.excalidraw.com/docs/introduction/contributing) or let us know on [Discord](https://discord.gg/UexuTaE).
-- Want to help with translations? See the [translation guide](https://docs.excalidraw.com/docs/introduction/contributing#translating).
+Optional configuration (see the comments in the compose file for details):
 
-## Integrations
+- `VITE_APP_FIREBASE_CONFIG` — your own Firebase project for collab scene persistence and image sharing.
+- `VITE_APP_BACKEND_V2_GET_URL` / `VITE_APP_BACKEND_V2_POST_URL` — self-hosted storage backend for "export to link".
+- `VITE_APP_AI_BACKEND` — backend for AI features.
 
-- [VScode extension](https://marketplace.visualstudio.com/items?itemName=pomdtr.excalidraw-editor)
-- [npm package](https://www.npmjs.com/package/@excalidraw/excalidraw)
+> [!NOTE]
+> All `VITE_APP_*` values are baked into the static bundle at **build** time. Changing them requires a rebuild, not a restart.
 
-## Who's integrating Excalidraw
+For platforms like Coolify: create a Docker Compose resource pointing at `docker-compose.selfhost.yml`, set the env vars, and assign one domain to `excalidraw` and another to `excalidraw-room` (both on port 80).
 
-[Google Cloud](https://googlecloudcheatsheet.withgoogle.com/architecture) • [Meta](https://meta.com/) • [CodeSandbox](https://codesandbox.io/) • [Obsidian Excalidraw](https://github.com/zsviczian/obsidian-excalidraw-plugin) • [Replit](https://replit.com/) • [Slite](https://slite.com/) • [Notion](https://notion.so/) • [HackerRank](https://www.hackerrank.com/) • and many others
+## Development
 
-## Sponsors & support
+```bash
+yarn
+yarn start            # run the app locally
+yarn test:typecheck   # TypeScript type checking
+yarn test:update      # run tests (with snapshot updates)
+yarn fix              # auto-fix formatting and linting
+```
 
-If you like the project, you can become a sponsor at [Open Collective](https://opencollective.com/excalidraw) or use [Excalidraw+](https://plus.excalidraw.com/).
+The repository is a monorepo: the editor lives in `packages/` and the app in `excalidraw-app/`. Fork-specific features are concentrated in `excalidraw-app/scenes/` and `excalidraw-app/components/` (scenes sidebar, collection dashboard, archive import).
 
-## Thank you for supporting Excalidraw
+## Issues & contributions
 
-[<img src="https://opencollective.com/excalidraw/tiers/sponsors/0/avatar.svg?avatarHeight=120"/>](https://opencollective.com/excalidraw/tiers/sponsors/0/website) [<img src="https://opencollective.com/excalidraw/tiers/sponsors/1/avatar.svg?avatarHeight=120"/>](https://opencollective.com/excalidraw/tiers/sponsors/1/website) [<img src="https://opencollective.com/excalidraw/tiers/sponsors/2/avatar.svg?avatarHeight=120"/>](https://opencollective.com/excalidraw/tiers/sponsors/2/website) [<img src="https://opencollective.com/excalidraw/tiers/sponsors/3/avatar.svg?avatarHeight=120"/>](https://opencollective.com/excalidraw/tiers/sponsors/3/website) [<img src="https://opencollective.com/excalidraw/tiers/sponsors/4/avatar.svg?avatarHeight=120"/>](https://opencollective.com/excalidraw/tiers/sponsors/4/website) [<img src="https://opencollective.com/excalidraw/tiers/sponsors/5/avatar.svg?avatarHeight=120"/>](https://opencollective.com/excalidraw/tiers/sponsors/5/website) [<img src="https://opencollective.com/excalidraw/tiers/sponsors/6/avatar.svg?avatarHeight=120"/>](https://opencollective.com/excalidraw/tiers/sponsors/6/website) [<img src="https://opencollective.com/excalidraw/tiers/sponsors/7/avatar.svg?avatarHeight=120"/>](https://opencollective.com/excalidraw/tiers/sponsors/7/website) [<img src="https://opencollective.com/excalidraw/tiers/sponsors/8/avatar.svg?avatarHeight=120"/>](https://opencollective.com/excalidraw/tiers/sponsors/8/website) [<img src="https://opencollective.com/excalidraw/tiers/sponsors/9/avatar.svg?avatarHeight=120"/>](https://opencollective.com/excalidraw/tiers/sponsors/9/website) [<img src="https://opencollective.com/excalidraw/tiers/sponsors/10/avatar.svg?avatarHeight=120"/>](https://opencollective.com/excalidraw/tiers/sponsors/10/website)
+- Problems with **fork features** (scenes, collections, self-hosting setup): [open an issue here](https://github.com/celom/excalidraw/issues).
+- Problems with the **core editor**: they likely exist upstream too — please report them to [excalidraw/excalidraw](https://github.com/excalidraw/excalidraw/issues) so everyone benefits.
 
-<a href="https://opencollective.com/excalidraw#category-CONTRIBUTE" target="_blank"><img src="https://opencollective.com/excalidraw/tiers/backers.svg?avatarHeight=32"/></a>
+## License & credit
 
-Last but not least, we're thankful to these companies for offering their services for free:
-
-[![Vercel](./.github/assets/vercel.svg)](https://vercel.com) [![Sentry](./.github/assets/sentry.svg)](https://sentry.io) [![Crowdin](./.github/assets/crowdin.svg)](https://crowdin.com)
+MIT, same as upstream. All credit for the editor itself goes to the [Excalidraw project and its contributors](https://github.com/excalidraw/excalidraw/graphs/contributors) — if you find the whiteboard useful, consider [sponsoring them](https://opencollective.com/excalidraw) or checking out [Excalidraw+](https://plus.excalidraw.com).
