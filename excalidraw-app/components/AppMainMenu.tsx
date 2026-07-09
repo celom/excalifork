@@ -64,7 +64,7 @@ export const AppMainMenu: React.FC<{
       <MainMenu.Separator />
       <MainMenu.ItemLink
         icon={GithubIcon}
-        href="https://github.com/celom/excalidraw"
+        href="https://github.com/celom/excalifork"
         aria-label="GitHub"
       >
         GitHub
