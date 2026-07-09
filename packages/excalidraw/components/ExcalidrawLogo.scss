@@ -1,19 +1,19 @@
 .excalidraw {
   .ExcalidrawLogo {
     --logo-icon--mobile: 1rem;
-    --logo-text--mobile: 0.75rem;
+    --logo-text--mobile: 1rem;
 
     --logo-icon--xs: 2rem;
-    --logo-text--xs: 1.5rem;
+    --logo-text--xs: 2rem;
 
     --logo-icon--small: 2.5rem;
-    --logo-text--small: 1.75rem;
+    --logo-text--small: 2.25rem;
 
     --logo-icon--normal: 3rem;
-    --logo-text--normal: 2.2rem;
+    --logo-text--normal: 2.75rem;
 
     --logo-icon--large: 90px;
-    --logo-text--large: 65px;
+    --logo-text--large: 80px;
 
     display: flex;
     align-items: center;
@@ -31,6 +31,14 @@
       margin-left: 0.75rem;
       width: auto;
       color: var(--color-logo-text);
+      font-family: "Excalifont", "Xiaolai", cursive;
+      // Excalifont only ships a regular weight, so bolding relies on the
+      // browser's synthetic bold; the text-stroke adds the rest of the heft.
+      font-weight: 700;
+      -webkit-text-stroke: 0.04em currentColor;
+      line-height: 1;
+      letter-spacing: 0.05em;
+      white-space: nowrap;
     }
 
     &.is-mobile {
@@ -39,7 +47,7 @@
       }
 
       .ExcalidrawLogo-text {
-        height: var(--logo-text--mobile);
+        font-size: var(--logo-text--mobile);
         margin-left: 0.5rem;
       }
     }
@@ -50,7 +58,7 @@
       }
 
       .ExcalidrawLogo-text {
-        height: var(--logo-text--xs);
+        font-size: var(--logo-text--xs);
       }
     }
 
@@ -60,7 +68,7 @@
       }
 
       .ExcalidrawLogo-text {
-        height: var(--logo-text--small);
+        font-size: var(--logo-text--small);
       }
     }
 
@@ -70,7 +78,7 @@
       }
 
       .ExcalidrawLogo-text {
-        height: var(--logo-text--normal);
+        font-size: var(--logo-text--normal);
       }
     }
 
@@ -80,7 +88,7 @@
       }
 
       .ExcalidrawLogo-text {
-        height: var(--logo-text--large);
+        font-size: var(--logo-text--large);
       }
     }
   }
