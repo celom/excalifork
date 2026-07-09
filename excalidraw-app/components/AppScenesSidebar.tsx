@@ -18,7 +18,7 @@ export const AppScenesSidebar = () => {
       onDock={setIsPinned}
     >
       <Sidebar.Header className="scenes-sidebar__header">
-        <div className="scenes-tab__header-title">Scenes folder</div>
+        <div className="scenes-tab__header-title">Scenes folio</div>
       </Sidebar.Header>
       <ScenesTab />
     </Sidebar>

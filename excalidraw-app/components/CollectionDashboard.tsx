@@ -1,4 +1,4 @@
-import { isInputLike } from "@excalidraw/common";
+import { CODES, KEYS, isInputLike } from "@excalidraw/common";
 import { useExcalidrawAPI } from "@excalidraw/excalidraw";
 import ConfirmDialog from "@excalidraw/excalidraw/components/ConfirmDialog";
 import {
@@ -49,6 +49,14 @@ import { dashboardIcon } from "./ScenesTab";
 import "./CollectionDashboard.scss";
 
 import type { SceneId } from "../scenes/storage";
+
+/** mirrors actionToggleTheme's keyTest (Alt+Shift+D) — toggling the theme
+ * only flips appState, so it may pass through the overlay's key swallow */
+const isThemeShortcut = (event: KeyboardEvent) =>
+  !event[KEYS.CTRL_OR_CMD] &&
+  event.altKey &&
+  event.shiftKey &&
+  event.code === CODES.D;
 
 type DropPosition = "before" | "after";
 
@@ -148,7 +156,7 @@ export const CollectionDashboard = () => {
         } else {
           setOpenCollectionId(null);
         }
-      } else if (!isInputLike(event.target)) {
+      } else if (!isInputLike(event.target) && !isThemeShortcut(event)) {
         // the editor stays mounted (and listening for shortcuts on
         // document) beneath the overlay — swallow every other key so
         // Delete, tool hotkeys, arrow nudges etc. can't silently mutate

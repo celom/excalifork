@@ -262,6 +262,9 @@ export const ScenesTab = () => {
               onClick={() => {
                 const meta = createCollection();
                 setOpenCollectionId(meta.id);
+                // drop the user straight into naming the new collection
+                setRenameValue(meta.name);
+                setRenamingCollectionId(meta.id);
               }}
             >
               {PlusIcon}
