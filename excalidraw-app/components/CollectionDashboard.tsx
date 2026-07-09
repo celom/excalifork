@@ -1,7 +1,6 @@
 import { isInputLike } from "@excalidraw/common";
 import { useExcalidrawAPI } from "@excalidraw/excalidraw";
 import ConfirmDialog from "@excalidraw/excalidraw/components/ConfirmDialog";
-import { ErrorDialog } from "@excalidraw/excalidraw/components/ErrorDialog";
 import {
   CloseIcon,
   LoadIcon,
@@ -29,10 +28,7 @@ import {
   getCollections,
   getSceneCollectionId,
 } from "../scenes/collections";
-import { detectConflicts } from "../scenes/archive";
 import { exportScenesArchive } from "../scenes/export";
-import { pickZipFile } from "../scenes/fileio";
-import { applyArchiveImport, readArchive } from "../scenes/import";
 import {
   ROOT_COLLECTION_ID,
   SCENES_SIDEBAR_NAME,
@@ -41,21 +37,18 @@ import {
   scenesSidebarPinnedAtom,
 } from "../scenes/state";
 
-import { ArchiveConflictDialog } from "./ArchiveConflictDialog";
+import {
+  archiveImportErrorAtom,
+  pendingArchiveImportAtom,
+  startArchiveImport,
+} from "./ArchiveImportFlow";
 import { getCollectionIcon } from "./collectionIcons";
 import { SceneCard } from "./SceneCard";
 import { dashboardIcon } from "./ScenesTab";
 
 import "./CollectionDashboard.scss";
 
-import type { ParsedArchive } from "../scenes/import";
 import type { SceneId } from "../scenes/storage";
-
-type PendingArchiveImport = {
-  archive: ParsedArchive;
-  conflictingSceneCount: number;
-  conflictingCollectionCount: number;
-};
 
 type DropPosition = "before" | "after";
 
@@ -82,9 +75,11 @@ export const CollectionDashboard = () => {
   const [renamingSceneId, setRenamingSceneId] = useState<SceneId | null>(null);
   const [pendingDeleteSceneId, setPendingDeleteSceneId] =
     useState<SceneId | null>(null);
-  const [pendingImport, setPendingImport] =
-    useState<PendingArchiveImport | null>(null);
-  const [importError, setImportError] = useState<string | null>(null);
+  // the import dialogs themselves are mounted app-wide (see
+  // ArchiveImportFlow) — the dashboard only reads the state for its
+  // Escape-priority handling below
+  const [pendingImport, setPendingImport] = useAtom(pendingArchiveImportAtom);
+  const [importError, setImportError] = useAtom(archiveImportErrorAtom);
 
   // card being dragged for reorder, and where it would land
   const [draggingSceneId, setDraggingSceneId] = useState<SceneId | null>(null);
@@ -186,7 +181,9 @@ export const CollectionDashboard = () => {
     renamingSceneId,
     pendingDeleteSceneId,
     pendingImport,
+    setPendingImport,
     importError,
+    setImportError,
     setOpenCollectionId,
   ]);
 
@@ -211,32 +208,6 @@ export const CollectionDashboard = () => {
     const meta = createScene(collectionId);
     // let the user name the scene right away on its new card
     setRenamingSceneId(meta.id);
-  };
-
-  const handleImportArchive = async () => {
-    const file = await pickZipFile();
-    if (!file) {
-      return;
-    }
-    try {
-      const archive = await readArchive(file);
-      const conflicts = detectConflicts(archive.manifest, scenesIndex);
-      if (
-        conflicts.sceneConflicts.length ||
-        conflicts.collectionConflicts.length
-      ) {
-        setPendingImport({
-          archive,
-          conflictingSceneCount: conflicts.sceneConflicts.length,
-          conflictingCollectionCount: conflicts.collectionConflicts.length,
-        });
-      } else {
-        await applyArchiveImport({ archive, resolution: null, excalidrawAPI });
-      }
-    } catch (error: any) {
-      console.error(error);
-      setImportError(error.message);
-    }
   };
 
   const draggingIndex = draggingSceneId
@@ -329,7 +300,7 @@ export const CollectionDashboard = () => {
               className="collection-dashboard__button collection-dashboard__button--secondary"
               title="Import a previously exported archive (.zip of .excalidraw files)"
               disabled={isCollaborating}
-              onClick={handleImportArchive}
+              onClick={() => startArchiveImport(excalidrawAPI)}
             >
               {LoadIcon}
               Import archive
@@ -451,33 +422,6 @@ export const CollectionDashboard = () => {
             <span className="excalifont">New scene</span>
           </button>
         </div>
-      )}
-      {pendingImport && (
-        <ArchiveConflictDialog
-          sceneCount={pendingImport.archive.manifest.scenes.length}
-          collectionCount={pendingImport.archive.manifest.collections.length}
-          conflictingSceneCount={pendingImport.conflictingSceneCount}
-          conflictingCollectionCount={pendingImport.conflictingCollectionCount}
-          onCancel={() => setPendingImport(null)}
-          onResolve={async (resolution) => {
-            setPendingImport(null);
-            try {
-              await applyArchiveImport({
-                archive: pendingImport.archive,
-                resolution,
-                excalidrawAPI,
-              });
-            } catch (error: any) {
-              console.error(error);
-              setImportError(error.message);
-            }
-          }}
-        />
-      )}
-      {importError && (
-        <ErrorDialog onClose={() => setImportError(null)}>
-          {importError}
-        </ErrorDialog>
       )}
       {pendingDeleteScene && (
         <ConfirmDialog

@@ -1,7 +1,9 @@
+import { Card } from "@excalidraw/excalidraw/components/Card";
 import ConfirmDialog from "@excalidraw/excalidraw/components/ConfirmDialog";
+import { ToolButton } from "@excalidraw/excalidraw/components/ToolButton";
 import { useState } from "react";
 
-import { useAtomValue } from "../app-jotai";
+import { appJotaiStore, useAtomValue } from "../app-jotai";
 import {
   disableFolderSync,
   enableFolderSync,
@@ -111,5 +113,53 @@ export const FolderSyncControl = () => {
         </ConfirmDialog>
       )}
     </div>
+  );
+};
+
+/**
+ * Entry-point card for the JSON export dialog. Only shown while sync is
+ * off — once enabled, the sidebar control above is the manage/status
+ * surface, so the card disappears from the dialog.
+ */
+export const FolderSyncExportCard = ({
+  onEnabled,
+}: {
+  onEnabled: () => void;
+}) => {
+  const status = useAtomValue(folderSyncStatusAtom);
+
+  if (!isFolderSyncSupported() || status !== "off") {
+    return null;
+  }
+
+  return (
+    <Card color="lime">
+      <div className="Card-icon">{folderSyncIcon}</div>
+      <h2>Sync to folder</h2>
+      <div className="Card-details">
+        Continuously save all your scenes as .excalidraw files into a folder you
+        pick.
+      </div>
+      <ToolButton
+        className="Card-button"
+        type="button"
+        title="Choose folder"
+        aria-label="Choose folder"
+        showAriaLabel={true}
+        onClick={async () => {
+          try {
+            await enableFolderSync();
+          } catch (error: any) {
+            console.error(error);
+            return;
+          }
+          // enableFolderSync returns silently when the picker is
+          // dismissed — only close the dialog if sync actually started
+          if (appJotaiStore.get(folderSyncStatusAtom) === "active") {
+            onEnabled();
+          }
+        }}
+      />
+    </Card>
   );
 };

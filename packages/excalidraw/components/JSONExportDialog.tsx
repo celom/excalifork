@@ -70,6 +70,8 @@ const JSONExportModal = ({
             />
           </Card>
         )}
+        {exportOpts.renderCustomUI &&
+          exportOpts.renderCustomUI(elements, appState, files, canvas)}
         {onExportToBackend && (
           <Card color="pink">
             <div className="Card-icon">{LinkIcon}</div>
@@ -93,8 +95,6 @@ const JSONExportModal = ({
             />
           </Card>
         )}
-        {exportOpts.renderCustomUI &&
-          exportOpts.renderCustomUI(elements, appState, files, canvas)}
       </div>
     </div>
   );
