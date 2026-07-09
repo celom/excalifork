@@ -72,9 +72,9 @@ export const AppMainMenu: React.FC<{
       <MainMenu.ItemLink
         icon={BlueskyIcon}
         href="https://bsky.app/profile/mimoso.bsky.social"
-        aria-label="Bluesky"
+        aria-label="Say hi on Bluesky"
       >
-        Bluesky
+        Bluesky - Come say hi!
       </MainMenu.ItemLink>
       <MainMenu.Separator />
       <MainMenu.DefaultItems.Preferences />
