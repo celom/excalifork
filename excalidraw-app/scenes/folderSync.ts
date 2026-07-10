@@ -44,6 +44,9 @@ export type FolderSyncStatus =
 
 export const folderSyncStatusAtom = atom<FolderSyncStatus>("off");
 export const folderSyncErrorAtom = atom<string | null>(null);
+/** name of the synced directory — the File System Access API never
+ * exposes the full path, only the picked directory's own name */
+export const folderSyncFolderNameAtom = atom<string | null>(null);
 
 export const isFolderSyncSupported = () =>
   typeof window !== "undefined" && "showDirectoryPicker" in window;
@@ -207,6 +210,7 @@ let dirty = false;
 const setStatus = (status: FolderSyncStatus, error: string | null = null) => {
   appJotaiStore.set(folderSyncStatusAtom, status);
   appJotaiStore.set(folderSyncErrorAtom, error);
+  appJotaiStore.set(folderSyncFolderNameAtom, record?.handle.name ?? null);
 };
 
 const persistRecord = async () => {

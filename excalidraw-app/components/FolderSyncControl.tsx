@@ -8,6 +8,7 @@ import {
   disableFolderSync,
   enableFolderSync,
   folderSyncErrorAtom,
+  folderSyncFolderNameAtom,
   folderSyncStatusAtom,
   isFolderSyncSupported,
   reenableFolderSync,
@@ -117,9 +118,9 @@ export const FolderSyncControl = () => {
 };
 
 /**
- * Entry-point card for the JSON export dialog. Only shown while sync is
- * off — once enabled, the sidebar control above is the manage/status
- * surface, so the card disappears from the dialog.
+ * Entry-point card for the JSON export dialog. While sync is off it
+ * offers to pick a folder; once enabled it reflects the sync status and
+ * the folder name (the File System Access API never exposes full paths).
  */
 export const FolderSyncExportCard = ({
   onEnabled,
@@ -127,39 +128,95 @@ export const FolderSyncExportCard = ({
   onEnabled: () => void;
 }) => {
   const status = useAtomValue(folderSyncStatusAtom);
+  const error = useAtomValue(folderSyncErrorAtom);
+  const folderName = useAtomValue(folderSyncFolderNameAtom);
 
-  if (!isFolderSyncSupported() || status !== "off") {
+  if (!isFolderSyncSupported() || status === "unsupported") {
     return null;
   }
+
+  const chooseFolder = async () => {
+    try {
+      await enableFolderSync();
+    } catch (error: any) {
+      console.error(error);
+      return;
+    }
+    // enableFolderSync returns silently when the picker is
+    // dismissed — only close the dialog if sync actually started
+    if (appJotaiStore.get(folderSyncStatusAtom) === "active") {
+      onEnabled();
+    }
+  };
 
   return (
     <Card color="lime">
       <div className="Card-icon">{folderSyncIcon}</div>
       <h2>Sync to folder</h2>
       <div className="Card-details">
-        Continuously save all your scenes as .excalidraw files into a folder you
-        pick.
+        {status === "off" &&
+          "Continuously save all your scenes as .excalidraw files into a folder you pick."}
+        {status === "active" && (
+          <>
+            <span className="folder-sync-card__status">
+              <span className="folder-sync__dot folder-sync__dot--active" />
+              Syncing to folder
+            </span>
+            {folderName && (
+              <span className="folder-sync-card__folder" title={folderName}>
+                {folderName}
+              </span>
+            )}
+          </>
+        )}
+        {status === "needs-permission" && (
+          <>
+            <span className="folder-sync-card__status">
+              <span className="folder-sync__dot folder-sync__dot--warning" />
+              Sync paused
+            </span>
+            The browser needs you to re-confirm access to
+            {folderName ? ` “${folderName}”` : " the sync folder"}.
+          </>
+        )}
+        {status === "error" && (
+          <>
+            <span className="folder-sync-card__status">
+              <span className="folder-sync__dot folder-sync__dot--error" />
+              Sync failed
+            </span>
+            {error ?? "Folder sync failed."}
+          </>
+        )}
       </div>
-      <ToolButton
-        className="Card-button"
-        type="button"
-        title="Choose folder"
-        aria-label="Choose folder"
-        showAriaLabel={true}
-        onClick={async () => {
-          try {
-            await enableFolderSync();
-          } catch (error: any) {
-            console.error(error);
-            return;
-          }
-          // enableFolderSync returns silently when the picker is
-          // dismissed — only close the dialog if sync actually started
-          if (appJotaiStore.get(folderSyncStatusAtom) === "active") {
-            onEnabled();
-          }
-        }}
-      />
+      {status === "active" ? (
+        <ToolButton
+          className="Card-button"
+          type="button"
+          title="Change folder"
+          aria-label="Change folder"
+          showAriaLabel={true}
+          onClick={chooseFolder}
+        />
+      ) : status === "needs-permission" ? (
+        <ToolButton
+          className="Card-button"
+          type="button"
+          title="Resume sync"
+          aria-label="Resume sync"
+          showAriaLabel={true}
+          onClick={() => reenableFolderSync()}
+        />
+      ) : (
+        <ToolButton
+          className="Card-button"
+          type="button"
+          title="Choose folder"
+          aria-label="Choose folder"
+          showAriaLabel={true}
+          onClick={chooseFolder}
+        />
+      )}
     </Card>
   );
 };

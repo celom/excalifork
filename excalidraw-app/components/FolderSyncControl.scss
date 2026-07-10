@@ -82,4 +82,23 @@
       }
     }
   }
+
+  // status lines inside the export-dialog card (Card-details)
+  .folder-sync-card {
+    &__status {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      font-weight: 600;
+      margin-bottom: 0.25rem;
+    }
+
+    &__folder {
+      display: block;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+  }
 }
