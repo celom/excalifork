@@ -95,6 +95,10 @@ export const CollectionDashboard = () => {
     sceneId: SceneId;
     position: DropPosition;
   } | null>(null);
+  // a file dragged in from the OS hovers over the page — dropping it
+  // imports it into this collection (the drop bubbles to the editor
+  // container's drop handler, which routes through onSceneFileOpen)
+  const [isFileDragOver, setIsFileDragOver] = useState(false);
 
   const isOpen = openCollectionId !== null;
   const collections = getCollections(scenesIndex);
@@ -128,6 +132,7 @@ export const CollectionDashboard = () => {
     setPendingDeleteSceneId(null);
     setDraggingSceneId(null);
     setDropTarget(null);
+    setIsFileDragOver(false);
   }, [openCollectionId]);
 
   useEffect(() => {
@@ -230,6 +235,13 @@ export const CollectionDashboard = () => {
       ? targetIndex === draggingIndex + 1
       : targetIndex === draggingIndex - 1);
 
+  // external files list "Files" in dataTransfer.types; internal card
+  // drags advertise SCENE_DRAG_MIME instead, so they don't match. The
+  // highlight is suppressed during collab — importing is disabled then
+  // and the drop would fall back to replacing the live scene
+  const isFileDrag = (event: React.DragEvent) =>
+    !isCollaborating && event.dataTransfer.types.includes("Files");
+
   const reorderDropHandlers = (sceneId: SceneId, sceneIndex: number) => ({
     onDragOver: (event: React.DragEvent) => {
       const position = dropPositionForEvent(event);
@@ -271,10 +283,26 @@ export const CollectionDashboard = () => {
     <div
       className={clsx("collection-dashboard", {
         "collection-dashboard--sidebar-open": isScenesSidebarOpen,
+        "collection-dashboard--file-drag": isFileDragOver,
       })}
       // keep the (undocked) scenes sidebar open while interacting with
       // the dashboard — also avoids the layout shift swallowing the click
       data-prevent-outside-click
+      // the drop itself is handled by the editor container underneath
+      // (handleAppOnDrop → onSceneFileOpen) — these only drive the
+      // drop-target highlight
+      onDragOver={(event) => {
+        if (isFileDrag(event)) {
+          setIsFileDragOver(true);
+        }
+      }}
+      onDragLeave={(event) => {
+        // ignore transitions into the page's own children
+        if (!event.currentTarget.contains(event.relatedTarget as Node)) {
+          setIsFileDragOver(false);
+        }
+      }}
+      onDrop={() => setIsFileDragOver(false)}
     >
       <div className="collection-dashboard__header">
         <div className="collection-dashboard__heading">
@@ -412,11 +440,15 @@ export const CollectionDashboard = () => {
           <div className="collection-dashboard__empty-hint">
             {collection ? (
               <>
-                Create a scene here, or drag one onto <b>{collection.name}</b>{" "}
-                in the sidebar.
+                Create a scene here, drop an <code>.excalidraw</code> file to
+                import one, or drag a scene onto <b>{collection.name}</b> in the
+                sidebar.
               </>
             ) : (
-              "Create a scene and start sketching."
+              <>
+                Create a scene and start sketching, or drop an{" "}
+                <code>.excalidraw</code> file to import one.
+              </>
             )}
           </div>
           <button
@@ -429,6 +461,20 @@ export const CollectionDashboard = () => {
             {PlusIcon}
             <span className="excalifont">New scene</span>
           </button>
+        </div>
+      )}
+      {isFileDragOver && (
+        <div className="collection-dashboard__drop-hint">
+          {LoadIcon}
+          <span>
+            {collection ? (
+              <>
+                Drop to import into <b>{collection.name}</b>
+              </>
+            ) : (
+              "Drop to import as a new scene"
+            )}
+          </span>
         </div>
       )}
       {pendingDeleteScene && (

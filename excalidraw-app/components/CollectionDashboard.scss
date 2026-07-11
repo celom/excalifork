@@ -52,6 +52,67 @@
       }
     }
 
+    // active drop target while a file from the OS hovers over the page —
+    // ::before tints the page, ::after draws the inset border (separate
+    // layers so the tint's opacity doesn't wash out the border)
+    &--file-drag::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      z-index: 1;
+      background-color: var(--color-primary);
+      opacity: 0.04;
+      pointer-events: none;
+    }
+
+    &--file-drag::after {
+      content: "";
+      position: absolute;
+      inset: 0.75rem;
+      z-index: 1;
+      border: 2px dashed var(--color-primary);
+      border-radius: var(--border-radius-lg);
+      pointer-events: none;
+      animation: scenes-dashboard-in 0.15s ease;
+    }
+
+    &__drop-hint {
+      position: absolute;
+      bottom: 2.5rem;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 1;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.5625rem 1rem;
+      border-radius: var(--border-radius-lg);
+      background-color: var(--color-primary);
+      color: var(--color-icon-white);
+      font-size: 0.8125rem;
+      font-weight: 600;
+      white-space: nowrap;
+      box-shadow: var(--shadow-island);
+      pointer-events: none;
+      animation: scenes-card-in 0.15s ease;
+
+      svg {
+        flex: 0 0 auto;
+        width: 1rem;
+        height: 1rem;
+      }
+
+      b {
+        // pill width is capped by the drop border inset (0.75rem) plus
+        // breathing room — long collection names ellipsize
+        display: inline-block;
+        max-width: min(18rem, calc(100vw - 16rem));
+        overflow: hidden;
+        text-overflow: ellipsis;
+        vertical-align: bottom;
+      }
+    }
+
     &__header {
       position: relative;
       display: flex;
@@ -517,6 +578,8 @@
 
 @media (prefers-reduced-motion: reduce) {
   .excalidraw .collection-dashboard,
+  .excalidraw .collection-dashboard--file-drag::after,
+  .excalidraw .collection-dashboard__drop-hint,
   .excalidraw .collection-dashboard__ghost-card,
   .excalidraw .scene-card {
     animation: none;

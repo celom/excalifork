@@ -9,6 +9,7 @@ import {
   waitFor,
 } from "@excalidraw/excalidraw/tests/test-utils";
 
+import { SCENE_DRAG_MIME } from "../scenes/collections";
 import {
   ROOT_COLLECTION_ID,
   openCollectionIdAtom,
@@ -170,6 +171,44 @@ describe("CollectionDashboard", () => {
     // jsdom has no showDirectoryPicker — the control must not render
     expect("showDirectoryPicker" in window).toBe(false);
     expect(document.querySelector(".folder-sync")).toBeNull();
+  });
+
+  it("highlights the page while a file is dragged over it", async () => {
+    await render(<ExcalidrawApp />);
+
+    await openDashboard();
+    const dashboard = document.querySelector(".collection-dashboard")!;
+
+    fireEvent.dragOver(dashboard, { dataTransfer: { types: ["Files"] } });
+    expect(
+      dashboard.classList.contains("collection-dashboard--file-drag"),
+    ).toBe(true);
+    expect(
+      document.querySelector(".collection-dashboard__drop-hint"),
+    ).not.toBeNull();
+
+    // leaving the page (relatedTarget outside it) removes the highlight
+    fireEvent.dragLeave(dashboard, { relatedTarget: document.body });
+    expect(
+      dashboard.classList.contains("collection-dashboard--file-drag"),
+    ).toBe(false);
+    expect(
+      document.querySelector(".collection-dashboard__drop-hint"),
+    ).toBeNull();
+  });
+
+  it("does not highlight for internal scene-card drags", async () => {
+    await render(<ExcalidrawApp />);
+
+    await openDashboard();
+    const dashboard = document.querySelector(".collection-dashboard")!;
+
+    fireEvent.dragOver(dashboard, {
+      dataTransfer: { types: [SCENE_DRAG_MIME] },
+    });
+    expect(
+      dashboard.classList.contains("collection-dashboard--file-drag"),
+    ).toBe(false);
   });
 
   it("still closes on Escape", async () => {
