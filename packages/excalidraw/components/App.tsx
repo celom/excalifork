@@ -12433,6 +12433,14 @@ class App extends React.Component<AppProps, AppState> {
             this.scene.getElementsIncludingDeleted(),
             fileHandle,
           );
+          // the host may divert the scene (e.g. import it as its own scene)
+          // instead of replacing the current one
+          if (
+            this.props.onSceneFileOpen &&
+            (await this.props.onSceneFileOpen(scene, file))
+          ) {
+            return;
+          }
           this.syncActionResult({
             ...scene,
             appState: {
@@ -12576,6 +12584,16 @@ class App extends React.Component<AppProps, AppState> {
       }
 
       if (ret.type === MIME_TYPES.excalidraw) {
+        // the host may divert the scene (e.g. import it as its own scene)
+        // instead of replacing the current one
+        if (
+          this.props.onSceneFileOpen &&
+          (await this.props.onSceneFileOpen(ret.data, file))
+        ) {
+          this.setState({ isLoading: false });
+          return;
+        }
+
         // restore the fractional indices by mutating elements
         syncInvalidIndices(elements.concat(ret.data.elements));
 

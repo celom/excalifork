@@ -56,6 +56,7 @@ import type { Spreadsheet } from "./charts";
 import type { ClipboardData } from "./clipboard";
 import type App from "./components/App";
 import type Library from "./data/library";
+import type { RestoredDataState } from "./data/restore";
 import type { ContextMenuItems } from "./components/ContextMenu";
 import type { SnapLine } from "./snapping";
 import type { ImportedDataState } from "./data/types";
@@ -670,6 +671,19 @@ export interface ExcalidrawProps {
   onPaste?: (
     data: ClipboardData,
     event: ClipboardEvent | null,
+  ) => Promise<boolean> | boolean;
+  /**
+   * Invoked when the user opens an `.excalidraw` scene file (load-scene
+   * action, drag & drop, PWA file handler / share target) before the editor
+   * replaces the current scene with the file's contents.
+   *
+   * Return true when the host has taken care of the file (e.g. imported it
+   * as its own scene) — the editor then leaves the current scene untouched.
+   * Return false to fall back to the default replace behavior.
+   */
+  onSceneFileOpen?: (
+    data: RestoredDataState,
+    file: File,
   ) => Promise<boolean> | boolean;
   /**
    * Called when element(s) are duplicated so you can listen or modify as

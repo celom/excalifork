@@ -20,8 +20,8 @@ import { ToolButton } from "../components/ToolButton";
 import { Tooltip } from "../components/Tooltip";
 import { ExportIcon, questionCircle, saveAs } from "../components/icons";
 import { loadFromJSON, saveAsJSON } from "../data";
-import { isImageFileHandle } from "../data/blob";
-import { nativeFileSystemSupported } from "../data/filesystem";
+import { isImageFileHandle, loadFromBlob } from "../data/blob";
+import { fileOpen, nativeFileSystemSupported } from "../data/filesystem";
 
 import { resaveAsImageWithScene } from "../data/resave";
 
@@ -448,6 +448,22 @@ export const actionLoadScene = register({
   },
   perform: async (elements, appState, _, app) => {
     try {
+      if (app.props.onSceneFileOpen) {
+        // same picker/restore steps as `loadFromJSON`, split up so the file
+        // can be handed to the host, which may divert it (e.g. import it as
+        // its own scene) instead of replacing the current one
+        const file = await fileOpen({ description: "Excalidraw files" });
+        const data = await loadFromBlob(file, appState, elements, file.handle);
+        if (await app.props.onSceneFileOpen(data, file)) {
+          return false;
+        }
+        return {
+          elements: data.elements,
+          appState: data.appState,
+          files: data.files,
+          captureUpdate: CaptureUpdateAction.IMMEDIATELY,
+        };
+      }
       const {
         elements: loadedElements,
         appState: loadedAppState,

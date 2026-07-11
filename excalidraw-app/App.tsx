@@ -110,11 +110,13 @@ import {
 
 import { updateStaleImageStatuses } from "./data/FileManager";
 import { FileStatusStore } from "./data/fileStatusStore";
-import { applyStoredScene } from "./scenes/actions";
+import { applyStoredScene, importSceneFromData } from "./scenes/actions";
 import { initFolderSync, isFolderSyncSupported } from "./scenes/folderSync";
 import {
   getActiveSceneId,
+  openCollectionIdAtom,
   refreshScenesIndexFromStorage,
+  ROOT_COLLECTION_ID,
 } from "./scenes/state";
 import { getAllSceneFileIds } from "./scenes/storage";
 import {
@@ -873,6 +875,49 @@ const ExcalidrawWrapper = () => {
   //   // console.log("onExport");
   // };
 
+  // opened .excalidraw files (load action, drag & drop, PWA file handler)
+  // become their own scene instead of replacing the one being edited —
+  // with folder sync active, a replace would also overwrite the old
+  // scene's file on disk
+  const onSceneFileOpen: Required<ExcalidrawProps>["onSceneFileOpen"] =
+    useCallback(
+      async (data, file) => {
+        if (!excalidrawAPI) {
+          return false;
+        }
+        // `data.appState` was restored against the current scene's app
+        // state (its `name` is the *current* scene's), so the file name is
+        // the only trustworthy name source here
+        const name = file.name.replace(/\.(excalidraw|json|png|svg)$/i, "");
+        // a file dropped onto an open collection page is filed into that
+        // collection; anywhere else it goes to the root dashboard
+        const openCollectionId = appJotaiStore.get(openCollectionIdAtom);
+        const collectionId =
+          openCollectionId && openCollectionId !== ROOT_COLLECTION_ID
+            ? openCollectionId
+            : null;
+        try {
+          // null while collaborating — fall back to the editor's default
+          // replace behavior so files can still be loaded into a live
+          // collab session
+          const id = await importSceneFromData(
+            data,
+            name,
+            excalidrawAPI,
+            collectionId,
+          );
+          return id !== null;
+        } catch (error: any) {
+          console.error(error);
+          setErrorMessage(error.message || "Couldn't import the scene.");
+          // report handled — falling back would overwrite the current
+          // scene, the exact thing this path exists to prevent
+          return true;
+        }
+      },
+      [excalidrawAPI],
+    );
+
   // browsers generally prevent infinite self-embedding, there are
   // cases where it still happens, and while we disallow self-embedding
   // by not whitelisting our own origin, this serves as an additional guard
@@ -902,6 +947,7 @@ const ExcalidrawWrapper = () => {
       <Excalidraw
         onChange={onChange}
         onExport={onExport}
+        onSceneFileOpen={onSceneFileOpen}
         initialData={initialStatePromiseRef.current.promise}
         isCollaborating={isCollaborating}
         onPointerUpdate={collabAPI?.onPointerUpdate}

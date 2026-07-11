@@ -89,6 +89,7 @@ const ExcalidrawBase = (props: ExcalidrawProps) => {
     name,
     renderCustomStats,
     onPaste,
+    onSceneFileOpen,
     detectScroll = true,
     handleKeyboardGlobally = false,
     onLibraryChange,
@@ -210,6 +211,7 @@ const ExcalidrawBase = (props: ExcalidrawProps) => {
           renderCustomStats={renderCustomStats}
           UIOptions={UIOptions}
           onPaste={onPaste}
+          onSceneFileOpen={onSceneFileOpen}
           detectScroll={detectScroll}
           handleKeyboardGlobally={handleKeyboardGlobally}
           onLibraryChange={onLibraryChange}
