@@ -1260,8 +1260,8 @@ describe("textWysiwyg", () => {
       UI.resize(rectangle, "ne", [rectangle.x + 100, rectangle.y - 100]);
       expect([h.elements[1].x, h.elements[1].y]).toMatchInlineSnapshot(`
         [
-          15,
-          65,
+          25,
+          55,
         ]
       `);
 
@@ -1280,8 +1280,8 @@ describe("textWysiwyg", () => {
       UI.resize(rectangle, "ne", [rectangle.x + 100, rectangle.y - 100]);
       expect([h.elements[1].x, h.elements[1].y]).toMatchInlineSnapshot(`
         [
-          "375.00000",
-          "-535.00000",
+          "365.00000",
+          "-525.00000",
         ]
       `);
     });
@@ -1330,7 +1330,7 @@ describe("textWysiwyg", () => {
       });
       expect(rectangle.width).toBe(200);
       expect(rectangle.height).toBe(166.66666666666669);
-      expect(textElement.fontSize).toBe(47.5);
+      expect(textElement.fontSize).toBe(56.66666666666667);
     });
 
     it("should bind text correctly when container duplicated with alt-drag", async () => {
@@ -1383,9 +1383,9 @@ describe("textWysiwyg", () => {
       mouse.moveTo(rectangle.x + 100, rectangle.y + 50);
       mouse.up(rectangle.x + 100, rectangle.y + 50);
       expect(rectangle.x).toBe(80);
-      expect(rectangle.y).toBe(-40);
-      expect(text.x).toBe(85);
-      expect(text.y).toBe(-35);
+      expect(rectangle.y).toBe(40);
+      expect(text.x).toBe(65);
+      expect(text.y).toBe(55);
 
       Keyboard.withModifierKeys({ ctrl: true }, () => {
         Keyboard.keyPress(KEYS.Z);
@@ -1477,7 +1477,7 @@ describe("textWysiwyg", () => {
       );
 
       expect((h.elements[1] as ExcalidrawTextElementWithContainer).text).toBe(
-        "Online\nwhiteboa\nrd\ncollabor\nation\nmade\neasy",
+        "Online\nwhiteb\noard\ncollab\noratio\nn made\neasy",
       );
       fireEvent.contextMenu(GlobalTestState.interactiveCanvas, {
         button: 2,
@@ -1533,13 +1533,13 @@ describe("textWysiwyg", () => {
       expect(
         (h.elements[1] as ExcalidrawTextElementWithContainer).fontFamily,
       ).toEqual(FONT_FAMILY["Comic Shanns"]);
-      expect(getOriginalContainerHeightFromCache(rectangle.id)).toBe(75);
+      expect(getOriginalContainerHeightFromCache(rectangle.id)).toBe(80);
 
       fireEvent.click(screen.getByTitle(/Very large/i));
       expect(
         (h.elements[1] as ExcalidrawTextElementWithContainer).fontSize,
       ).toEqual(36);
-      expect(getOriginalContainerHeightFromCache(rectangle.id)).toBe(100);
+      expect(getOriginalContainerHeightFromCache(rectangle.id)).toBe(120);
     });
 
     it("should update line height when font family updated", async () => {
@@ -1592,8 +1592,8 @@ describe("textWysiwyg", () => {
         fireEvent.click(screen.getByTitle("Align top"));
         expect([h.elements[1].x, h.elements[1].y]).toMatchInlineSnapshot(`
           [
-            15,
             25,
+            35,
           ]
         `);
       });
@@ -1604,7 +1604,7 @@ describe("textWysiwyg", () => {
         expect([h.elements[1].x, h.elements[1].y]).toMatchInlineSnapshot(`
           [
             30,
-            25,
+            35,
           ]
         `);
       });
@@ -1615,8 +1615,8 @@ describe("textWysiwyg", () => {
 
         expect([h.elements[1].x, h.elements[1].y]).toMatchInlineSnapshot(`
           [
-            45,
-            25,
+            35,
+            35,
           ]
         `);
       });
@@ -1626,7 +1626,7 @@ describe("textWysiwyg", () => {
         fireEvent.click(screen.getByTitle("Left"));
         expect([h.elements[1].x, h.elements[1].y]).toMatchInlineSnapshot(`
           [
-            15,
+            25,
             45,
           ]
         `);
@@ -1650,7 +1650,7 @@ describe("textWysiwyg", () => {
 
         expect([h.elements[1].x, h.elements[1].y]).toMatchInlineSnapshot(`
           [
-            45,
+            35,
             45,
           ]
         `);
@@ -1662,8 +1662,8 @@ describe("textWysiwyg", () => {
 
         expect([h.elements[1].x, h.elements[1].y]).toMatchInlineSnapshot(`
           [
-            15,
-            65,
+            25,
+            55,
           ]
         `);
       });
@@ -1674,7 +1674,7 @@ describe("textWysiwyg", () => {
         expect([h.elements[1].x, h.elements[1].y]).toMatchInlineSnapshot(`
           [
             30,
-            65,
+            55,
           ]
         `);
       });
@@ -1684,8 +1684,8 @@ describe("textWysiwyg", () => {
         fireEvent.click(screen.getByTitle("Align bottom"));
         expect([h.elements[1].x, h.elements[1].y]).toMatchInlineSnapshot(`
           [
-            45,
-            65,
+            35,
+            55,
           ]
         `);
       });
@@ -1740,7 +1740,7 @@ describe("textWysiwyg", () => {
           ],
           fillStyle: "solid",
           groupIds: [],
-          height: 35,
+          height: 55,
           isDeleted: false,
           link: null,
           locked: false,
@@ -1753,9 +1753,9 @@ describe("textWysiwyg", () => {
           type: "rectangle",
           updated: 1,
           version: 2,
-          width: 610,
-          x: 15,
-          y: 12.5,
+          width: 630,
+          x: 5,
+          y: 2.5,
         }),
       );
       expect(h.elements[2] as ExcalidrawTextElement).toEqual(
@@ -1769,6 +1769,15 @@ describe("textWysiwyg", () => {
     });
 
     it("shouldn't bind to container if container has bound text not centered and text tool is used", async () => {
+      // use a taller container so the bottom-aligned bound text stays clear
+      // of the container center, where the text tool inserts new text
+      API.setElements([]);
+      const rectangle = UI.createElement("rectangle", {
+        x: 10,
+        y: 20,
+        width: 90,
+        height: 150,
+      });
       expect(h.elements.length).toBe(1);
 
       Keyboard.keyPress(KEYS.ENTER);

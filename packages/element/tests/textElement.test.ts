@@ -35,8 +35,8 @@ describe("Test measureText", () => {
         ...params,
       });
       expect(getContainerCoords(element)).toEqual({
-        x: 15,
-        y: 25,
+        x: 25,
+        y: 35,
       });
     });
 
@@ -64,7 +64,7 @@ describe("Test measureText", () => {
         ...params,
       });
       expect(computeContainerDimensionForBoundText(150, element.type)).toEqual(
-        160,
+        180,
       );
     });
 
@@ -97,7 +97,7 @@ describe("Test measureText", () => {
 
     it("should return max width when container is rectangle", () => {
       const container = API.createElement({ type: "rectangle", ...params });
-      expect(getBoundTextMaxWidth(container, null)).toBe(168);
+      expect(getBoundTextMaxWidth(container, null)).toBe(148);
     });
 
     it("should return max width when container is ellipse", () => {
@@ -135,7 +135,7 @@ describe("Test measureText", () => {
 
     it("should return max height when container is rectangle", () => {
       const container = API.createElement({ type: "rectangle", ...params });
-      expect(getBoundTextMaxHeight(container, boundTextElement)).toBe(184);
+      expect(getBoundTextMaxHeight(container, boundTextElement)).toBe(164);
     });
 
     it("should return max height when container is ellipse", () => {
@@ -254,8 +254,8 @@ describe("Test computeBoundTextPosition", () => {
         elementsMap,
       );
 
-      expect(result.x).toBeCloseTo(185, 1);
-      expect(result.y).toBeCloseTo(75, 1);
+      expect(result.x).toBeCloseTo(175, 1);
+      expect(result.y).toBeCloseTo(85, 1);
     });
 
     it("should position text with LEFT + MIDDLE alignment at 90-degree rotation", () => {
@@ -269,7 +269,7 @@ describe("Test computeBoundTextPosition", () => {
       );
 
       expect(result.x).toBeCloseTo(160, 1);
-      expect(result.y).toBeCloseTo(75, 1);
+      expect(result.y).toBeCloseTo(85, 1);
     });
 
     it("should position text with LEFT + BOTTOM alignment at 90-degree rotation", () => {
@@ -282,8 +282,8 @@ describe("Test computeBoundTextPosition", () => {
         elementsMap,
       );
 
-      expect(result.x).toBeCloseTo(135, 1);
-      expect(result.y).toBeCloseTo(75, 1);
+      expect(result.x).toBeCloseTo(145, 1);
+      expect(result.y).toBeCloseTo(85, 1);
     });
 
     it("should position text with CENTER + TOP alignment at 90-degree rotation", () => {
@@ -296,7 +296,7 @@ describe("Test computeBoundTextPosition", () => {
         elementsMap,
       );
 
-      expect(result.x).toBeCloseTo(185, 1);
+      expect(result.x).toBeCloseTo(175, 1);
       expect(result.y).toBeCloseTo(130, 1);
     });
 
@@ -330,7 +330,7 @@ describe("Test computeBoundTextPosition", () => {
         elementsMap,
       );
 
-      expect(result.x).toBeCloseTo(135, 1);
+      expect(result.x).toBeCloseTo(145, 1);
       expect(result.y).toBeCloseTo(130, 1);
     });
 
@@ -344,8 +344,8 @@ describe("Test computeBoundTextPosition", () => {
         elementsMap,
       );
 
-      expect(result.x).toBeCloseTo(185, 1);
-      expect(result.y).toBeCloseTo(185, 1);
+      expect(result.x).toBeCloseTo(175, 1);
+      expect(result.y).toBeCloseTo(175, 1);
     });
 
     it("should position text with RIGHT + MIDDLE alignment at 90-degree rotation", () => {
@@ -359,7 +359,7 @@ describe("Test computeBoundTextPosition", () => {
       );
 
       expect(result.x).toBeCloseTo(160, 1);
-      expect(result.y).toBeCloseTo(185, 1);
+      expect(result.y).toBeCloseTo(175, 1);
     });
 
     it("should position text with RIGHT + BOTTOM alignment at 90-degree rotation", () => {
@@ -372,8 +372,8 @@ describe("Test computeBoundTextPosition", () => {
         elementsMap,
       );
 
-      expect(result.x).toBeCloseTo(135, 1);
-      expect(result.y).toBeCloseTo(185, 1);
+      expect(result.x).toBeCloseTo(145, 1);
+      expect(result.y).toBeCloseTo(175, 1);
     });
   });
 });

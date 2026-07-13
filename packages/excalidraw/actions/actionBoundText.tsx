@@ -1,5 +1,5 @@
 import {
-  BOUND_TEXT_PADDING,
+  RECTANGLE_BOUND_TEXT_PADDING,
   ROUNDNESS,
   TEXT_ALIGN,
   VERTICAL_ALIGN,
@@ -265,8 +265,8 @@ export const actionWrapTextInContainer = register({
               : null,
           opacity: 100,
           locked: false,
-          x: textElement.x - BOUND_TEXT_PADDING,
-          y: textElement.y - BOUND_TEXT_PADDING,
+          x: textElement.x - RECTANGLE_BOUND_TEXT_PADDING,
+          y: textElement.y - RECTANGLE_BOUND_TEXT_PADDING,
           width: computeContainerDimensionForBoundText(
             textElement.width,
             "rectangle",

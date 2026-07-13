@@ -3563,9 +3563,13 @@ describe("history", () => {
       let container: ExcalidrawGenericElement;
       let text: ExcalidrawTextElement;
 
+      // width chosen so the bound text ("que pasa", 80px wide) fits within
+      // the container's max text width and the text x/y match the redrawn
+      // position (container x/y + RECTANGLE_BOUND_TEXT_PADDING), making
+      // bound text redraws a no-op position-wise
       const containerProps = {
         type: "rectangle",
-        width: 100,
+        width: 120,
         x: 10,
         y: 10,
         angle: 0,
@@ -3574,8 +3578,8 @@ describe("history", () => {
       const textProps = {
         type: "text",
         text: "que pasa",
-        x: 15,
-        y: 15,
+        x: 25,
+        y: 25,
         angle: 0,
       } as const;
 
@@ -4392,8 +4396,8 @@ describe("history", () => {
           expect.objectContaining({
             ...textProps,
             // text element got redrawn!
-            x: 241.295259647664,
-            y: 247.59240920619527,
+            x: 251.295259647664,
+            y: 257.59240920619527,
             angle: 90,
             id: text.id,
             containerId: container.id,
@@ -4436,8 +4440,8 @@ describe("history", () => {
           }),
           expect.objectContaining({
             ...textProps,
-            x: 241.295259647664,
-            y: 247.59240920619527,
+            x: 251.295259647664,
+            y: 257.59240920619527,
             angle: 90,
             id: text.id,
             containerId: container.id,

@@ -1412,7 +1412,7 @@ exports[`Test Transform > should transform the elements correctly when linear el
   "groupIds": [
     "subgraph_group_A",
   ],
-  "height": 44,
+  "height": 80,
   "id": Any<String>,
   "index": "a2",
   "isDeleted": false,
@@ -1427,7 +1427,7 @@ exports[`Test Transform > should transform the elements correctly when linear el
   "strokeWidth": 2,
   "type": "rectangle",
   "updated": 1,
-  "version": 3,
+  "version": 4,
   "versionNonce": Any<Number>,
   "width": 70.265625,
   "x": 389.546875,
@@ -1459,7 +1459,7 @@ exports[`Test Transform > should transform the elements correctly when linear el
   "groupIds": [
     "subgraph_group_B",
   ],
-  "height": 44,
+  "height": 80,
   "id": Any<String>,
   "index": "a3",
   "isDeleted": false,
@@ -1474,7 +1474,7 @@ exports[`Test Transform > should transform the elements correctly when linear el
   "strokeWidth": 2,
   "type": "rectangle",
   "updated": 1,
-  "version": 4,
+  "version": 5,
   "versionNonce": Any<Number>,
   "width": 56.4921875,
   "x": 54.76953125,
@@ -1499,7 +1499,7 @@ exports[`Test Transform > should transform the elements correctly when linear el
     "elementId": "Alice",
     "fixedPoint": [
       -0.07542628418945944,
-      0.5001,
+      0.275,
     ],
     "mode": "orbit",
   },
@@ -1533,7 +1533,7 @@ exports[`Test Transform > should transform the elements correctly when linear el
     "elementId": "Bob",
     "fixedPoint": [
       1.000004978564514,
-      0.5001,
+      0.275,
     ],
     "mode": "orbit",
   },
@@ -1597,7 +1597,7 @@ exports[`Test Transform > should transform the elements correctly when linear el
     "elementId": "Bob",
     "fixedPoint": [
       0.39381496335223337,
-      1,
+      0.55,
     ],
     "mode": "orbit",
   },
@@ -1653,7 +1653,7 @@ exports[`Test Transform > should transform the elements correctly when linear el
   "verticalAlign": "top",
   "width": 10,
   "x": 78.015625,
-  "y": 5,
+  "y": 15,
 }
 `;
 
@@ -1696,7 +1696,7 @@ exports[`Test Transform > should transform the elements correctly when linear el
   "verticalAlign": "top",
   "width": 10,
   "x": 419.6796875,
-  "y": 5,
+  "y": 15,
 }
 `;
 
@@ -1715,7 +1715,7 @@ exports[`Test Transform > should transform the elements correctly when linear el
   "groupIds": [
     "subgraph_group_A",
   ],
-  "height": 25,
+  "height": 50,
   "id": Any<String>,
   "index": "a8",
   "isDeleted": false,
@@ -1730,16 +1730,17 @@ exports[`Test Transform > should transform the elements correctly when linear el
   "strokeColor": "#1e1e1e",
   "strokeStyle": "solid",
   "strokeWidth": 2,
-  "text": "Alice",
+  "text": "Alic
+e",
   "textAlign": "center",
   "type": "text",
   "updated": 1,
   "version": 3,
   "versionNonce": Any<Number>,
   "verticalAlign": "middle",
-  "width": 50,
-  "x": 399.6796875,
-  "y": 44.5,
+  "width": 40,
+  "x": 404.6796875,
+  "y": 50,
 }
 `;
 
@@ -1758,7 +1759,7 @@ exports[`Test Transform > should transform the elements correctly when linear el
   "groupIds": [
     "subgraph_group_B",
   ],
-  "height": 25,
+  "height": 50,
   "id": Any<String>,
   "index": "a9",
   "isDeleted": false,
@@ -1773,16 +1774,17 @@ exports[`Test Transform > should transform the elements correctly when linear el
   "strokeColor": "#1e1e1e",
   "strokeStyle": "solid",
   "strokeWidth": 2,
-  "text": "Bob",
+  "text": "Bo
+b",
   "textAlign": "center",
   "type": "text",
   "updated": 1,
   "version": 3,
   "versionNonce": Any<Number>,
   "verticalAlign": "middle",
-  "width": 30,
-  "x": 68.015625,
-  "y": 44.5,
+  "width": 20,
+  "x": 73.015625,
+  "y": 50,
 }
 `;
 
@@ -2256,7 +2258,7 @@ exports[`Test Transform > should transform to text containers when label provide
   "fillStyle": "solid",
   "frameId": null,
   "groupIds": [],
-  "height": 35,
+  "height": 55,
   "id": Any<String>,
   "index": "a0",
   "isDeleted": false,
@@ -2273,7 +2275,7 @@ exports[`Test Transform > should transform to text containers when label provide
   "updated": 1,
   "version": 4,
   "versionNonce": Any<Number>,
-  "width": 250,
+  "width": 270,
   "x": 100,
   "y": 100,
 }
@@ -2404,7 +2406,7 @@ exports[`Test Transform > should transform to text containers when label provide
   "fillStyle": "solid",
   "frameId": null,
   "groupIds": [],
-  "height": 85,
+  "height": 105,
   "id": Any<String>,
   "index": "a4",
   "isDeleted": false,
@@ -2500,8 +2502,8 @@ exports[`Test Transform > should transform to text containers when label provide
   "versionNonce": Any<Number>,
   "verticalAlign": "middle",
   "width": 240,
-  "x": 105,
-  "y": 105,
+  "x": 115,
+  "y": 115,
 }
 `;
 
@@ -2671,8 +2673,8 @@ CONTAINER",
   "versionNonce": Any<Number>,
   "verticalAlign": "top",
   "width": 160,
-  "x": 505,
-  "y": 305,
+  "x": 515,
+  "y": 315,
 }
 `;
 

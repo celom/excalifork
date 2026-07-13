@@ -2,6 +2,7 @@ import {
   ARROW_LABEL_FONT_SIZE_TO_MIN_WIDTH_RATIO,
   ARROW_LABEL_WIDTH_FRACTION,
   BOUND_TEXT_PADDING,
+  RECTANGLE_BOUND_TEXT_PADDING,
   DEFAULT_FONT_SIZE,
   TEXT_ALIGN,
   VERTICAL_ALIGN,
@@ -374,8 +375,14 @@ export const getContainerCenter = (
 };
 
 export const getContainerCoords = (container: ExcalidrawElement) => {
-  let offsetX = BOUND_TEXT_PADDING;
-  let offsetY = BOUND_TEXT_PADDING;
+  let offsetX =
+    container.type === "rectangle"
+      ? RECTANGLE_BOUND_TEXT_PADDING
+      : BOUND_TEXT_PADDING;
+  let offsetY =
+    container.type === "rectangle"
+      ? RECTANGLE_BOUND_TEXT_PADDING
+      : BOUND_TEXT_PADDING;
 
   if (container.type === "ellipse") {
     // The derivation of coordinates is explained in https://github.com/excalidraw/excalidraw/pull/6172
@@ -481,7 +488,7 @@ export const computeContainerDimensionForBoundText = (
   if (containerType === "diamond") {
     return 2 * (dimension + padding);
   }
-  return dimension + padding;
+  return dimension + RECTANGLE_BOUND_TEXT_PADDING * 2;
 };
 
 export const getBoundTextMaxWidth = (
@@ -506,7 +513,7 @@ export const getBoundTextMaxWidth = (
     // Math.round(width / 2) - https://github.com/excalidraw/excalidraw/pull/6265
     return Math.round(width / 2) - BOUND_TEXT_PADDING * 2;
   }
-  return width - BOUND_TEXT_PADDING * 2;
+  return width - RECTANGLE_BOUND_TEXT_PADDING * 2;
 };
 
 export const getBoundTextMaxHeight = (
@@ -532,7 +539,7 @@ export const getBoundTextMaxHeight = (
     // Math.round(height / 2) - https://github.com/excalidraw/excalidraw/pull/6265
     return Math.round(height / 2) - BOUND_TEXT_PADDING * 2;
   }
-  return height - BOUND_TEXT_PADDING * 2;
+  return height - RECTANGLE_BOUND_TEXT_PADDING * 2;
 };
 
 /** retrieves text from text elements and concatenates to a single string */
