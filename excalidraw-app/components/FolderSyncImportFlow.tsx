@@ -101,15 +101,10 @@ export const FolderSyncImportDialogs = () => {
               : ""}
             .
           </p>
-          <p>
-            <b>Append</b> adds them to your workspace as new scenes.{" "}
-            <b>Replace workspace</b> deletes your current scenes and imports the
-            folder's files instead.
-          </p>
           <div className="folder-sync-import-dialog__buttons">
             <DialogActionButton label="Cancel" onClick={cancel} />
             <DialogActionButton
-              label="Append"
+              label="Add to workspace"
               onClick={() =>
                 // flush before the caller re-focuses the container (see
                 // ConfirmDialog for the chromium crash this avoids)
