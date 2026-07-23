@@ -99,6 +99,7 @@ import Collab, {
 import { AppFooter } from "./components/AppFooter";
 import { AppMainMenu } from "./components/AppMainMenu";
 import { AppWelcomeScreen } from "./components/AppWelcomeScreen";
+import { SceneTitle } from "./components/SceneTitle";
 import { TopErrorBoundary } from "./components/TopErrorBoundary";
 
 import {
@@ -982,16 +983,19 @@ const ExcalidrawWrapper = () => {
         autoFocus={true}
         theme={editorTheme}
         onThemeChange={setAppTheme}
-        renderTopLeftUI={(isMobile, appState) =>
-          appState.openSidebar?.name === SCENES_SIDEBAR_NAME ? null : (
-            <Sidebar.Trigger
-              name={SCENES_SIDEBAR_NAME}
-              icon={scenesTabIcon}
-              title="Scenes"
-              className="scenes-sidebar-trigger"
-            />
-          )
-        }
+        renderTopLeftUI={(isMobile, appState) => (
+          <>
+            {appState.openSidebar?.name === SCENES_SIDEBAR_NAME ? null : (
+              <Sidebar.Trigger
+                name={SCENES_SIDEBAR_NAME}
+                icon={scenesTabIcon}
+                title="Scenes"
+                className="scenes-sidebar-trigger"
+              />
+            )}
+            {!isMobile && <SceneTitle />}
+          </>
+        )}
         renderTopRightUI={(isMobile) => {
           if (isMobile || !collabAPI || isCollabDisabled) {
             return null;

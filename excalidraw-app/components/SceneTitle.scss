@@ -1,0 +1,13 @@
+.excalidraw {
+  .scene-title {
+    color: var(--color-gray-50);
+    font-size: 0.875rem;
+    max-width: 14rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    // read-only label — let clicks fall through to the canvas
+    pointer-events: none;
+    user-select: none;
+  }
+}
