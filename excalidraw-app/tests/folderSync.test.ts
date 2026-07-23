@@ -3,6 +3,8 @@ import { buildScenePaths } from "../scenes/serialize";
 import { setScenesIndex } from "../scenes/state";
 import { saveSceneSync } from "../scenes/storage";
 
+import { asRoot, FakeDirectory } from "./helpers/fakeDirectory";
+
 import type { SyncedScenes } from "../scenes/folderSync";
 import type { CollectionMeta, SceneMeta, ScenesIndex } from "../scenes/storage";
 
@@ -93,71 +95,6 @@ describe("computeSyncOps", () => {
     });
   });
 });
-
-// -----------------------------------------------------------------------------
-// in-memory FileSystemDirectoryHandle fake
-// -----------------------------------------------------------------------------
-
-class FakeDirectory {
-  files = new Map<string, string>();
-  directories = new Map<string, FakeDirectory>();
-
-  async getDirectoryHandle(name: string, opts?: { create?: boolean }) {
-    let directory = this.directories.get(name);
-    if (!directory) {
-      if (!opts?.create) {
-        throw new DOMException("not found", "NotFoundError");
-      }
-      directory = new FakeDirectory();
-      this.directories.set(name, directory);
-    }
-    return directory;
-  }
-
-  async getFileHandle(name: string, opts?: { create?: boolean }) {
-    if (!this.files.has(name) && !opts?.create) {
-      throw new DOMException("not found", "NotFoundError");
-    }
-    return {
-      createWritable: async () => ({
-        write: async (content: string) => {
-          this.files.set(name, content);
-        },
-        close: async () => {},
-      }),
-    };
-  }
-
-  async removeEntry(name: string) {
-    if (this.files.delete(name)) {
-      return;
-    }
-    const directory = this.directories.get(name);
-    if (directory) {
-      if (directory.files.size || directory.directories.size) {
-        throw new DOMException("not empty", "InvalidModificationError");
-      }
-      this.directories.delete(name);
-      return;
-    }
-    throw new DOMException("not found", "NotFoundError");
-  }
-
-  /** test helper: flat map of path → content */
-  snapshot(prefix = ""): Record<string, string> {
-    const result: Record<string, string> = {};
-    for (const [name, content] of this.files) {
-      result[`${prefix}${name}`] = content;
-    }
-    for (const [name, directory] of this.directories) {
-      Object.assign(result, directory.snapshot(`${prefix}${name}/`));
-    }
-    return result;
-  }
-}
-
-const asRoot = (fake: FakeDirectory) =>
-  fake as unknown as FileSystemDirectoryHandle;
 
 describe("syncScenesToFolder", () => {
   beforeEach(() => {

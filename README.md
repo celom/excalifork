@@ -2,8 +2,7 @@
 
 A personal fork of [Excalidraw](https://github.com/excalidraw/excalidraw) focused on **local-first document management** and **easy self-hosting**.
 
-> [!IMPORTANT]
-> **This is not the official Excalidraw repository.** It is an independent fork and is not affiliated with or endorsed by the Excalidraw team. For the official editor, npm package, documentation, and Excalidraw+, go to [excalidraw/excalidraw](https://github.com/excalidraw/excalidraw), [excalidraw.com](https://excalidraw.com), and [docs.excalidraw.com](https://docs.excalidraw.com).
+> [!IMPORTANT] > **This is not the official Excalidraw repository.** It is an independent fork and is not affiliated with or endorsed by the Excalidraw team. For the official editor, npm package, documentation, and Excalidraw+, go to [excalidraw/excalidraw](https://github.com/excalidraw/excalidraw), [excalidraw.com](https://excalidraw.com), and [docs.excalidraw.com](https://docs.excalidraw.com).
 
 ## Why this fork exists
 
@@ -36,8 +35,7 @@ Optional configuration (see the comments in the compose file for details):
 - `VITE_APP_BACKEND_V2_GET_URL` / `VITE_APP_BACKEND_V2_POST_URL` — self-hosted storage backend for "export to link".
 - `VITE_APP_AI_BACKEND` — backend for AI features.
 
-> [!NOTE]
-> All `VITE_APP_*` values are baked into the static bundle at **build** time. Changing them requires a rebuild, not a restart.
+> [!NOTE] All `VITE_APP_*` values are baked into the static bundle at **build** time. Changing them requires a rebuild, not a restart.
 
 For platforms like Coolify: create a Docker Compose resource pointing at `docker-compose.selfhost.yml`, set the env vars, and assign one domain to `excalidraw` and another to `excalidraw-room` (both on port 80).
 

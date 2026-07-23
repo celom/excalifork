@@ -112,11 +112,17 @@ const IMPORTED_SUFFIX = " (imported)";
  *
  * `resolution` must be provided when `detectConflicts` reports conflicts
  * (the caller shows the summary dialog); pass null otherwise.
+ *
+ * `mode: "replace"` swaps the whole workspace for the archive in a single
+ * index commit — the old scenes are deleted only after all blobs were
+ * written, so a mid-way failure leaves the workspace untouched. Meant for
+ * conflict-free archives (fresh ids, e.g. a scanned sync folder).
  */
 export const applyArchiveImport = async (opts: {
   archive: ParsedArchive;
   resolution: ConflictResolution | null;
   excalidrawAPI: ExcalidrawImperativeAPI;
+  mode?: "merge" | "replace";
 }): Promise<{ importedScenes: number }> => {
   const { manifest, sceneFiles } = opts.archive;
 
@@ -220,6 +226,49 @@ export const applyArchiveImport = async (opts: {
 
   if (!importedSceneIds.size) {
     return { importedScenes: 0 };
+  }
+
+  if (opts.mode === "replace") {
+    const oldSceneIds = getScenesIndex().scenes.map((scene) => scene.id);
+    const scenes: SceneMeta[] = [];
+    for (const entry of manifest.scenes) {
+      if (!importedSceneIds.has(entry.id)) {
+        continue;
+      }
+      scenes.push({
+        id: mappedSceneId(entry.id),
+        name: entry.name,
+        createdAt: entry.createdAt,
+        updatedAt: entry.updatedAt,
+        collectionId: mappedCollectionId(entry.collectionId),
+      });
+    }
+    const keptIds = new Set(scenes.map((scene) => scene.id));
+    const activeId = scenes[0].id;
+
+    // the outgoing active scene dies with the workspace — a late flush of
+    // its debounced save would write a blob the new index doesn't know
+    LocalData.cancelSave();
+    LocalData.pauseSave("switchingScene");
+    try {
+      setScenesIndex({
+        version: 1,
+        activeSceneId: activeId,
+        scenes,
+        collections: [...manifest.collections],
+      });
+      // only after the commit, so a failure never half-deletes the old
+      // workspace (blobs for the new one roll back via phase 1)
+      for (const id of oldSceneIds) {
+        if (!keptIds.has(id)) {
+          deleteSceneSync(id);
+        }
+      }
+      await applyStoredScene(activeId, opts.excalidrawAPI);
+    } finally {
+      LocalData.resumeSave("switchingScene");
+    }
+    return { importedScenes: importedSceneIds.size };
   }
 
   // ---------------------------------------------------------------------

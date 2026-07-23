@@ -12,6 +12,11 @@ import type { ExcalidrawImperativeAPI } from "@excalidraw/excalidraw/types";
 
 import { appJotaiStore } from "../app-jotai";
 import { ARCHIVE_MANIFEST_FILENAME, buildManifest } from "../scenes/archive";
+import { getCollections } from "../scenes/collections";
+import {
+  folderEntriesToArchive,
+  mergeCollectionsByName,
+} from "../scenes/folderImport";
 import { applyArchiveImport, readArchive } from "../scenes/import";
 import { pickZipFile } from "../scenes/fileio";
 import { buildScenePaths } from "../scenes/serialize";
@@ -19,6 +24,7 @@ import {
   ROOT_COLLECTION_ID,
   getScenesIndex,
   openCollectionIdAtom,
+  setScenesIndex,
 } from "../scenes/state";
 import { loadSceneSync } from "../scenes/storage";
 
@@ -196,6 +202,129 @@ describe("applyArchiveImport", () => {
     await waitFor(() => {
       expect(h.elements[0]?.id).toBe("elem-restored");
     });
+  });
+});
+
+describe("applyArchiveImport replace mode", () => {
+  beforeEach(async () => {
+    await render(<ExcalidrawApp />);
+  });
+
+  it("swaps the whole workspace for the archive", async () => {
+    const before = getScenesIndex();
+    const oldIds = before.scenes.map((scene) => scene.id);
+
+    const archive = await readArchive(
+      makeArchiveFile([
+        {
+          ...sceneMeta({ id: "scene-r1", name: "First" }),
+          elementId: "elem-r1",
+        },
+        {
+          ...sceneMeta({ id: "scene-r2", name: "Second" }),
+          elementId: "elem-r2",
+        },
+      ]),
+    );
+    await act(async () => {
+      const result = await applyArchiveImport({
+        archive,
+        resolution: null,
+        excalidrawAPI: apiShim(),
+        mode: "replace",
+      });
+      expect(result.importedScenes).toBe(2);
+    });
+
+    const after = getScenesIndex();
+    expect(after.scenes.map((scene) => scene.id)).toEqual([
+      "scene-r1",
+      "scene-r2",
+    ]);
+    expect(after.activeSceneId).toBe("scene-r1");
+    // the old workspace's blobs are gone
+    for (const id of oldIds) {
+      expect(loadSceneSync(id)).toBeNull();
+    }
+    // the editor shows the new active scene
+    await waitFor(() => {
+      expect(h.elements[0]?.id).toBe("elem-r1");
+    });
+  });
+
+  it("leaves the workspace untouched when every entry is unreadable", async () => {
+    const before = getScenesIndex();
+    const activeBlobBefore = loadSceneSync(before.activeSceneId);
+
+    const manifest = buildManifest({
+      scenes: [sceneMeta({ id: "scene-bad", name: "Bad" })],
+      collections: [],
+      scope: "all",
+      paths: new Map([["scene-bad", "Bad.excalidraw"]]),
+    });
+    const zipped = zipSync({
+      [ARCHIVE_MANIFEST_FILENAME]: new Uint8Array(
+        strToU8(JSON.stringify(manifest)),
+      ),
+      "Bad.excalidraw": new Uint8Array(strToU8("not an excalidraw file")),
+    });
+    const archive = await readArchive(
+      new File([new Uint8Array(zipped) as BlobPart], "corrupt.zip"),
+    );
+
+    const result = await applyArchiveImport({
+      archive,
+      resolution: null,
+      excalidrawAPI: apiShim(),
+      mode: "replace",
+    });
+
+    expect(result.importedScenes).toBe(0);
+    const after = getScenesIndex();
+    expect(after.scenes.map((scene) => scene.id).sort()).toEqual(
+      before.scenes.map((scene) => scene.id).sort(),
+    );
+    expect(after.activeSceneId).toBe(before.activeSceneId);
+    expect(loadSceneSync(before.activeSceneId)?.elements).toEqual(
+      activeBlobBefore?.elements,
+    );
+  });
+
+  it("append-merge lands folder scenes in the same-named existing collection", async () => {
+    act(() => {
+      setScenesIndex({
+        ...getScenesIndex(),
+        collections: [{ id: "c-ideas", name: "Ideas", createdAt: 1 }],
+      });
+    });
+
+    const archive = folderEntriesToArchive([
+      {
+        path: "Ideas/Plan.excalidraw",
+        bytes: new Uint8Array(strToU8(sceneFileJSON("elem-merge"))),
+      },
+    ]);
+    const manifest = mergeCollectionsByName(
+      archive.manifest,
+      getCollections(getScenesIndex()),
+    );
+    await act(async () => {
+      const result = await applyArchiveImport({
+        archive: { ...archive, manifest },
+        resolution: null,
+        excalidrawAPI: apiShim(),
+      });
+      expect(result.importedScenes).toBe(1);
+    });
+
+    const after = getScenesIndex();
+    const imported = after.scenes.find((scene) => scene.name === "Plan")!;
+    expect(imported.collectionId).toBe("c-ideas");
+    // no duplicate "Ideas" collection was created
+    expect(
+      after.collections!.filter((collection) => collection.name === "Ideas"),
+    ).toHaveLength(1);
+    expect(loadSceneSync(imported.id)?.elements[0].id).toBe("elem-merge");
   });
 });
 

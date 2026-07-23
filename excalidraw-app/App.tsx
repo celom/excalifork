@@ -154,6 +154,7 @@ import {
 import { ArchiveImportDialogs } from "./components/ArchiveImportFlow";
 import { CollectionDashboard } from "./components/CollectionDashboard";
 import { FolderSyncExportCard } from "./components/FolderSyncControl";
+import { FolderSyncImportDialogs } from "./components/FolderSyncImportFlow";
 import { scenesTabIcon } from "./components/ScenesTab";
 
 import type { CollabAPI } from "./collab/Collab";
@@ -1080,6 +1081,7 @@ const ExcalidrawWrapper = () => {
         <AppScenesSidebar />
         <CollectionDashboard />
         <ArchiveImportDialogs />
+        <FolderSyncImportDialogs />
 
         {errorMessage && (
           <ErrorDialog onClose={() => setErrorMessage("")}>

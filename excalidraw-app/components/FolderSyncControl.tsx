@@ -11,6 +11,7 @@ import {
   folderSyncFolderNameAtom,
   folderSyncStatusAtom,
   isFolderSyncSupported,
+  pendingFolderSyncImportAtom,
   reenableFolderSync,
 } from "../scenes/folderSync";
 
@@ -143,8 +144,12 @@ export const FolderSyncExportCard = ({
       return;
     }
     // enableFolderSync returns silently when the picker is
-    // dismissed — only close the dialog if sync actually started
-    if (appJotaiStore.get(folderSyncStatusAtom) === "active") {
+    // dismissed — only close the dialog if sync actually started, or if
+    // the append/replace prompt was parked (it would be buried otherwise)
+    if (
+      appJotaiStore.get(folderSyncStatusAtom) === "active" ||
+      appJotaiStore.get(pendingFolderSyncImportAtom)
+    ) {
       onEnabled();
     }
   };

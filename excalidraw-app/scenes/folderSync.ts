@@ -2,7 +2,9 @@
  * One-way folder sync: continuously mirrors the workspace into a
  * user-picked directory as real `.excalidraw` files (layout shared with
  * the archive export — see serialize.ts). Disk edits are NOT watched;
- * bringing files back in goes through the import flows.
+ * bringing files back in goes through the import flows — except at
+ * activation, where a non-empty folder offers a one-time append/replace
+ * import (see folderImport.ts).
  *
  * Chromium-only (File System Access API) — feature-detect with
  * `isFolderSyncSupported()` and hide the UI elsewhere.
@@ -22,9 +24,11 @@ import { createStore, del, get, set } from "idb-keyval";
 import { appJotaiStore, atom } from "../app-jotai";
 
 import { getCollections } from "./collections";
+import { folderEntriesToArchive, scanFolderForScenes } from "./folderImport";
 import { buildScenePaths, serializeSceneToString } from "./serialize";
 import { getScenesIndex, scenesIndexAtom } from "./state";
 
+import type { ParsedArchive } from "./import";
 import type { ScenePathPlan } from "./serialize";
 import type { SceneId, SceneMeta } from "./storage";
 
@@ -47,6 +51,21 @@ export const folderSyncErrorAtom = atom<string | null>(null);
 /** name of the synced directory — the File System Access API never
  * exposes the full path, only the picked directory's own name */
 export const folderSyncFolderNameAtom = atom<string | null>(null);
+
+/**
+ * Set when the picked folder already contains `.excalidraw` files —
+ * activation is parked until the user chooses append/replace/cancel in
+ * <FolderSyncImportDialogs/>. Nothing is persisted while pending, so
+ * cancelling leaves any previously running sync untouched.
+ */
+export type PendingFolderSyncImport = {
+  handle: FileSystemDirectoryHandle;
+  archive: ParsedArchive;
+};
+export const pendingFolderSyncImportAtom = atom<PendingFolderSyncImport | null>(
+  null,
+);
+export const folderSyncImportErrorAtom = atom<string | null>(null);
 
 export const isFolderSyncSupported = () =>
   typeof window !== "undefined" && "showDirectoryPicker" in window;
@@ -314,7 +333,30 @@ export const initFolderSync = async () => {
   }
 };
 
-/** user gesture: pick a folder and mirror everything into it */
+/**
+ * Commit point: persist the handle and start mirroring. `synced` starts
+ * empty even when the folder's files were just imported — the first pass
+ * then has no delete ops, so the mirror can never remove a file it didn't
+ * write (path-plan dedup may hand a pre-existing file's path to another
+ * scene). Consequences: imported files are rewritten in place with
+ * round-tripped content, and a file whose name sanitization changed stays
+ * behind as an unmanaged leftover.
+ */
+export const activateFolderSync = async (handle: FileSystemDirectoryHandle) => {
+  stopEngine();
+  record = { version: 1, handle, synced: {} };
+  await persistRecord();
+  subscribeToIndex();
+  setStatus("active");
+  await reconcile();
+};
+
+/**
+ * user gesture: pick a folder and mirror everything into it. If the
+ * folder already contains `.excalidraw` files, activation is parked in
+ * `pendingFolderSyncImportAtom` — the app-wide dialogs finish (or cancel)
+ * the flow.
+ */
 export const enableFolderSync = async () => {
   let handle: FileSystemDirectoryHandle;
   try {
@@ -328,12 +370,24 @@ export const enableFolderSync = async () => {
     }
     throw error;
   }
-  stopEngine();
-  record = { version: 1, handle, synced: {} };
-  await persistRecord();
-  subscribeToIndex();
-  setStatus("active");
-  await reconcile();
+  try {
+    const entries = await scanFolderForScenes(handle);
+    if (entries.length) {
+      appJotaiStore.set(pendingFolderSyncImportAtom, {
+        handle,
+        archive: folderEntriesToArchive(entries),
+      });
+      return;
+    }
+  } catch (error: any) {
+    console.error(error);
+    appJotaiStore.set(
+      folderSyncImportErrorAtom,
+      "Couldn't read the selected folder. Folder sync was not enabled.",
+    );
+    return;
+  }
+  await activateFolderSync(handle);
 };
 
 /** user gesture: re-grant permission for the persisted folder */
