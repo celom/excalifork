@@ -431,8 +431,8 @@ export const ScenesTab = () => {
         >
           <p>
             Are you sure you want to delete{" "}
-            <b>{pendingDeleteCollection.name}</b>? Its scenes will move back to the
-            Default collection.
+            <b>{pendingDeleteCollection.name}</b>? Its scenes will move back to
+            the Default collection.
           </p>
         </ConfirmDialog>
       )}

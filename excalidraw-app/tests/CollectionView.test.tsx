@@ -180,21 +180,19 @@ describe("CollectionView", () => {
     const dashboard = document.querySelector(".collection-view")!;
 
     fireEvent.dragOver(dashboard, { dataTransfer: { types: ["Files"] } });
-    expect(
-      dashboard.classList.contains("collection-view--file-drag"),
-    ).toBe(true);
+    expect(dashboard.classList.contains("collection-view--file-drag")).toBe(
+      true,
+    );
     expect(
       document.querySelector(".collection-view__drop-hint"),
     ).not.toBeNull();
 
     // leaving the page (relatedTarget outside it) removes the highlight
     fireEvent.dragLeave(dashboard, { relatedTarget: document.body });
-    expect(
-      dashboard.classList.contains("collection-view--file-drag"),
-    ).toBe(false);
-    expect(
-      document.querySelector(".collection-view__drop-hint"),
-    ).toBeNull();
+    expect(dashboard.classList.contains("collection-view--file-drag")).toBe(
+      false,
+    );
+    expect(document.querySelector(".collection-view__drop-hint")).toBeNull();
   });
 
   it("does not highlight for internal scene-card drags", async () => {
@@ -206,9 +204,9 @@ describe("CollectionView", () => {
     fireEvent.dragOver(dashboard, {
       dataTransfer: { types: [SCENE_DRAG_MIME] },
     });
-    expect(
-      dashboard.classList.contains("collection-view--file-drag"),
-    ).toBe(false);
+    expect(dashboard.classList.contains("collection-view--file-drag")).toBe(
+      false,
+    );
   });
 
   it("still closes on Escape", async () => {
