@@ -27,7 +27,7 @@ const openDashboard = async () => {
     appJotaiStore.set(openCollectionIdAtom, ROOT_COLLECTION_ID);
   });
   await waitFor(() => {
-    expect(document.querySelector(".collection-dashboard")).not.toBeNull();
+    expect(document.querySelector(".collection-view")).not.toBeNull();
   });
 };
 
@@ -36,7 +36,7 @@ const closeDashboard = async () => {
     appJotaiStore.set(openCollectionIdAtom, null);
   });
   await waitFor(() => {
-    expect(document.querySelector(".collection-dashboard")).toBeNull();
+    expect(document.querySelector(".collection-view")).toBeNull();
   });
 };
 
@@ -58,7 +58,7 @@ const createSelectedRect = () => {
   API.setSelectedElements([rect]);
 };
 
-describe("CollectionDashboard", () => {
+describe("CollectionView", () => {
   it("swallows editor shortcuts while open, and stops swallowing on close", async () => {
     await render(<ExcalidrawApp />);
     createSelectedRect();
@@ -116,7 +116,7 @@ describe("CollectionDashboard", () => {
       h.app.toggleSidebar({ name: SCENES_SIDEBAR_NAME, force: false });
     });
     await waitFor(() => {
-      expect(document.querySelector(".collection-dashboard")).toBeNull();
+      expect(document.querySelector(".collection-view")).toBeNull();
     });
   });
 
@@ -131,7 +131,7 @@ describe("CollectionDashboard", () => {
     fireEvent.click(document.querySelector(".scene-card")!);
 
     await waitFor(() => {
-      expect(document.querySelector(".collection-dashboard")).toBeNull();
+      expect(document.querySelector(".collection-view")).toBeNull();
       expect(h.state.openSidebar).toBeNull();
     });
   });
@@ -149,7 +149,7 @@ describe("CollectionDashboard", () => {
       fireEvent.click(document.querySelector(".scene-card")!);
 
       await waitFor(() => {
-        expect(document.querySelector(".collection-dashboard")).toBeNull();
+        expect(document.querySelector(".collection-view")).toBeNull();
       });
       expect(h.state.openSidebar).toEqual({ name: SCENES_SIDEBAR_NAME });
     } finally {
@@ -177,23 +177,23 @@ describe("CollectionDashboard", () => {
     await render(<ExcalidrawApp />);
 
     await openDashboard();
-    const dashboard = document.querySelector(".collection-dashboard")!;
+    const dashboard = document.querySelector(".collection-view")!;
 
     fireEvent.dragOver(dashboard, { dataTransfer: { types: ["Files"] } });
     expect(
-      dashboard.classList.contains("collection-dashboard--file-drag"),
+      dashboard.classList.contains("collection-view--file-drag"),
     ).toBe(true);
     expect(
-      document.querySelector(".collection-dashboard__drop-hint"),
+      document.querySelector(".collection-view__drop-hint"),
     ).not.toBeNull();
 
     // leaving the page (relatedTarget outside it) removes the highlight
     fireEvent.dragLeave(dashboard, { relatedTarget: document.body });
     expect(
-      dashboard.classList.contains("collection-dashboard--file-drag"),
+      dashboard.classList.contains("collection-view--file-drag"),
     ).toBe(false);
     expect(
-      document.querySelector(".collection-dashboard__drop-hint"),
+      document.querySelector(".collection-view__drop-hint"),
     ).toBeNull();
   });
 
@@ -201,13 +201,13 @@ describe("CollectionDashboard", () => {
     await render(<ExcalidrawApp />);
 
     await openDashboard();
-    const dashboard = document.querySelector(".collection-dashboard")!;
+    const dashboard = document.querySelector(".collection-view")!;
 
     fireEvent.dragOver(dashboard, {
       dataTransfer: { types: [SCENE_DRAG_MIME] },
     });
     expect(
-      dashboard.classList.contains("collection-dashboard--file-drag"),
+      dashboard.classList.contains("collection-view--file-drag"),
     ).toBe(false);
   });
 
@@ -218,7 +218,7 @@ describe("CollectionDashboard", () => {
 
     Keyboard.keyPress(KEYS.ESCAPE);
     await waitFor(() => {
-      expect(document.querySelector(".collection-dashboard")).toBeNull();
+      expect(document.querySelector(".collection-view")).toBeNull();
     });
   });
 });

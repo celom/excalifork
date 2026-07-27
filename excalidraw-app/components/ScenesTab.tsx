@@ -249,7 +249,7 @@ export const ScenesTab = () => {
             {...collectionDropHandlers(ROOT_COLLECTION_ID)}
           >
             {dashboardIcon}
-            <span className="scenes-tab__row-label">Dashboard</span>
+            <span className="scenes-tab__row-label">Default</span>
             <span className="scenes-tab__row-count">
               {sceneCounts.get(ROOT_COLLECTION_ID) ?? 0}
             </span>
@@ -431,8 +431,8 @@ export const ScenesTab = () => {
         >
           <p>
             Are you sure you want to delete{" "}
-            <b>{pendingDeleteCollection.name}</b>? Its scenes will move back to
-            Dashboard.
+            <b>{pendingDeleteCollection.name}</b>? Its scenes will move back to the
+            Default collection.
           </p>
         </ConfirmDialog>
       )}
