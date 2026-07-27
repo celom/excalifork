@@ -153,7 +153,7 @@ import {
   SCENES_SIDEBAR_NAME,
 } from "./components/AppScenesSidebar";
 import { ArchiveImportDialogs } from "./components/ArchiveImportFlow";
-import { CollectionDashboard } from "./components/CollectionDashboard";
+import { CollectionView } from "./components/CollectionView";
 import { FolderSyncExportCard } from "./components/FolderSyncControl";
 import { FolderSyncImportDialogs } from "./components/FolderSyncImportFlow";
 import { scenesTabIcon } from "./components/ScenesTab";
@@ -1083,7 +1083,7 @@ const ExcalidrawWrapper = () => {
         />
 
         <AppScenesSidebar />
-        <CollectionDashboard />
+        <CollectionView />
         <ArchiveImportDialogs />
         <FolderSyncImportDialogs />
 

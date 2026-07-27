@@ -46,7 +46,7 @@ import { getCollectionIcon } from "./collectionIcons";
 import { SceneCard } from "./SceneCard";
 import { dashboardIcon } from "./ScenesTab";
 
-import "./CollectionDashboard.scss";
+import "./CollectionView.scss";
 
 import type { SceneId } from "../scenes/storage";
 
@@ -69,7 +69,7 @@ const dropPositionForEvent = (event: React.DragEvent): DropPosition => {
   return inLeftHalf !== isRTL ? "before" : "after";
 };
 
-export const CollectionDashboard = () => {
+export const CollectionView = () => {
   const excalidrawAPI = useExcalidrawAPI();
   const [openCollectionId, setOpenCollectionId] = useAtom(openCollectionIdAtom);
   const scenesIndex = useAtomValue(scenesIndexAtom);
@@ -281,9 +281,9 @@ export const CollectionDashboard = () => {
 
   return (
     <div
-      className={clsx("collection-dashboard", {
-        "collection-dashboard--sidebar-open": isScenesSidebarOpen,
-        "collection-dashboard--file-drag": isFileDragOver,
+      className={clsx("collection-view", {
+        "collection-view--sidebar-open": isScenesSidebarOpen,
+        "collection-view--file-drag": isFileDragOver,
       })}
       // keep the (undocked) scenes sidebar open while interacting with
       // the dashboard — also avoids the layout shift swallowing the click
@@ -304,20 +304,20 @@ export const CollectionDashboard = () => {
       }}
       onDrop={() => setIsFileDragOver(false)}
     >
-      <div className="collection-dashboard__header">
-        <div className="collection-dashboard__heading">
-          <div className="collection-dashboard__title">
+      <div className="collection-view__header">
+        <div className="collection-view__heading">
+          <div className="collection-view__title">
             {collection ? getCollectionIcon(collection.icon) : dashboardIcon}
-            <span>{collection ? collection.name : "Dashboard"}</span>
+            <span>{collection ? collection.name : "Default"}</span>
           </div>
-          <div className="collection-dashboard__subtitle">
+          <div className="collection-view__subtitle">
             {scenes.length === 1 ? "1 scene" : `${scenes.length} scenes`}
           </div>
         </div>
-        <div className="collection-dashboard__header-actions">
+        <div className="collection-view__header-actions">
           <button
             type="button"
-            className="collection-dashboard__button collection-dashboard__button--secondary"
+            className="collection-view__button collection-view__button--secondary"
             title="Import an .excalidraw file as a new scene"
             disabled={isCollaborating}
             onClick={async () => {
@@ -333,7 +333,7 @@ export const CollectionDashboard = () => {
           {!collection && (
             <button
               type="button"
-              className="collection-dashboard__button collection-dashboard__button--secondary"
+              className="collection-view__button collection-view__button--secondary"
               title="Import a previously exported archive (.zip of .excalidraw files)"
               disabled={isCollaborating}
               onClick={() => startArchiveImport(excalidrawAPI)}
@@ -344,7 +344,7 @@ export const CollectionDashboard = () => {
           )}
           <button
             type="button"
-            className="collection-dashboard__button collection-dashboard__button--secondary"
+            className="collection-view__button collection-view__button--secondary"
             title={
               collection
                 ? "Export this collection as a zip of .excalidraw files"
@@ -362,7 +362,7 @@ export const CollectionDashboard = () => {
           </button>
           <button
             type="button"
-            className="collection-dashboard__close"
+            className="collection-view__close"
             title="Close"
             onClick={() => setOpenCollectionId(null)}
           >
@@ -371,12 +371,12 @@ export const CollectionDashboard = () => {
         </div>
       </div>
       {isCollaborating && (
-        <div className="collection-dashboard__hint">
+        <div className="collection-view__hint">
           Switching scenes is disabled during a live collaboration session.
         </div>
       )}
       {scenes.length ? (
-        <div className="collection-dashboard__grid">
+        <div className="collection-view__grid">
           {scenes.map((scene, index) => (
             <SceneCard
               key={scene.id}
@@ -420,7 +420,7 @@ export const CollectionDashboard = () => {
           ))}
           <button
             type="button"
-            className="collection-dashboard__ghost-card"
+            className="collection-view__ghost-card"
             style={
               { "--scene-card-index": scenes.length } as React.CSSProperties
             }
@@ -433,11 +433,11 @@ export const CollectionDashboard = () => {
           </button>
         </div>
       ) : (
-        <div className="collection-dashboard__empty">
-          <div className="collection-dashboard__empty-title excalifont">
+        <div className="collection-view__empty">
+          <div className="collection-view__empty-title excalifont">
             Nothing here yet
           </div>
-          <div className="collection-dashboard__empty-hint">
+          <div className="collection-view__empty-hint">
             {collection ? (
               <>
                 Create a scene here, drop an <code>.excalidraw</code> file to
@@ -453,7 +453,7 @@ export const CollectionDashboard = () => {
           </div>
           <button
             type="button"
-            className="collection-dashboard__ghost-card"
+            className="collection-view__ghost-card"
             title="Add new scene"
             disabled={isCollaborating}
             onClick={handleCreateScene}
@@ -464,7 +464,7 @@ export const CollectionDashboard = () => {
         </div>
       )}
       {isFileDragOver && (
-        <div className="collection-dashboard__drop-hint">
+        <div className="collection-view__drop-hint">
           {LoadIcon}
           <span>
             {collection ? (

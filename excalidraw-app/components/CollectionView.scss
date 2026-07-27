@@ -1,4 +1,4 @@
-@keyframes scenes-dashboard-in {
+@keyframes collection-view-in {
   from {
     opacity: 0;
   }
@@ -12,23 +12,23 @@
 }
 
 .excalidraw {
-  &.theme--dark .collection-dashboard {
+  &.theme--dark .collection-view {
     --scenes-text-secondary: var(--color-gray-40);
     // a notch darker than the canvas (--default-bg-color: #121212) — the
     // dark surface-* vars are all lighter, so no var fits here
-    --dashboard-bg-color: #0d0d0d;
-    --dashboard-separator-color: var(--color-gray-80);
+    --collection-view-bg-color: #0d0d0d;
+    --collection-view-separator-color: var(--color-gray-80);
     --scene-card-hover-shadow: 0 6px 16px rgba(0, 0, 0, 0.45);
   }
 
-  .collection-dashboard {
+  .collection-view {
     --scenes-text-secondary: var(--color-gray-60);
     // shared inline padding for the header, hint and grid; shrinks on
     // narrow windows so the cards keep their gap instead of overflowing
-    --dashboard-inline-padding: clamp(1rem, 4vw, 2.5rem);
+    --collection-view-inline-padding: clamp(1rem, 4vw, 2.5rem);
     // a notch darker than the canvas (--default-bg-color: #fff)
-    --dashboard-bg-color: var(--color-surface-mid);
-    --dashboard-separator-color: var(--color-gray-40);
+    --collection-view-bg-color: var(--color-surface-mid);
+    --collection-view-separator-color: var(--color-gray-40);
     --scene-card-hover-shadow: var(--shadow-island);
 
     position: absolute;
@@ -40,8 +40,8 @@
     display: flex;
     flex-direction: column;
     gap: 0.5rem;
-    background-color: var(--dashboard-bg-color);
-    animation: scenes-dashboard-in 0.15s ease;
+    background-color: var(--collection-view-bg-color);
+    animation: collection-view-in 0.15s ease;
 
     // the scenes sidebar (left) stacks above the overlay; inset by the
     // sidebar's actual width (see Sidebar.scss) so no canvas strip shows
@@ -76,7 +76,7 @@
       border: 2px dashed var(--color-primary);
       border-radius: var(--border-radius-lg);
       pointer-events: none;
-      animation: scenes-dashboard-in 0.15s ease;
+      animation: collection-view-in 0.15s ease;
     }
 
     &__drop-hint {
@@ -122,7 +122,7 @@
       align-items: flex-start;
       justify-content: space-between;
       gap: 1rem;
-      padding: 2rem var(--dashboard-inline-padding) 1.25rem;
+      padding: 2rem var(--collection-view-inline-padding) 1.25rem;
 
       // separates the heading from the scene cards below; inset to the
       // header's inner padding instead of spanning the full page width
@@ -130,9 +130,9 @@
         content: "";
         position: absolute;
         bottom: 0;
-        left: var(--dashboard-inline-padding);
-        right: var(--dashboard-inline-padding);
-        border-bottom: 1px solid var(--dashboard-separator-color);
+        left: var(--collection-view-inline-padding);
+        right: var(--collection-view-inline-padding);
+        border-bottom: 1px solid var(--collection-view-separator-color);
       }
     }
 
@@ -254,7 +254,7 @@
     }
 
     &__hint {
-      margin: 0 var(--dashboard-inline-padding);
+      margin: 0 var(--collection-view-inline-padding);
       font-size: 0.75rem;
       color: var(--scenes-text-secondary);
       padding: 0.4375rem 0.625rem;
@@ -266,7 +266,7 @@
     &__grid {
       flex: 1 1 auto;
       overflow-y: auto;
-      padding: 1.25rem var(--dashboard-inline-padding) 2.5rem;
+      padding: 1.25rem var(--collection-view-inline-padding) 2.5rem;
       display: grid;
       // min(210px, 100%) caps the track minimum at the grid's content
       // width, so on narrow viewports the cards shrink instead of
@@ -318,10 +318,10 @@
       justify-content: center;
       gap: 0.5rem;
       // bottom padding nudges the block up for optical centering
-      padding: 1.5rem var(--dashboard-inline-padding) 10vh;
+      padding: 1.5rem var(--collection-view-inline-padding) 10vh;
       text-align: center;
 
-      .collection-dashboard__ghost-card {
+      .collection-view__ghost-card {
         flex: 0 0 auto;
         width: min(240px, 100%);
         margin-top: 1rem;
@@ -586,10 +586,10 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .excalidraw .collection-dashboard,
-  .excalidraw .collection-dashboard--file-drag::after,
-  .excalidraw .collection-dashboard__drop-hint,
-  .excalidraw .collection-dashboard__ghost-card,
+  .excalidraw .collection-view,
+  .excalidraw .collection-view--file-drag::after,
+  .excalidraw .collection-view__drop-hint,
+  .excalidraw .collection-view__ghost-card,
   .excalidraw .scene-card {
     animation: none;
     transition: none;

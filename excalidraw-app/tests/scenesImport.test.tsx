@@ -347,12 +347,12 @@ describe("Import archive button", () => {
       appJotaiStore.set(openCollectionIdAtom, ROOT_COLLECTION_ID);
     });
     await waitFor(() => {
-      expect(document.querySelector(".collection-dashboard")).not.toBeNull();
+      expect(document.querySelector(".collection-view")).not.toBeNull();
     });
 
     const importButton = [
       ...document.querySelectorAll<HTMLButtonElement>(
-        ".collection-dashboard__button",
+        ".collection-view__button",
       ),
     ].find((button) => button.textContent?.includes("Import archive"))!;
     expect(importButton).toBeDefined();
