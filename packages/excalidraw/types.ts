@@ -20,6 +20,7 @@ import type {
   ExcalidrawElement,
   GroupId,
   ExcalidrawBindableElement,
+  ExcalidrawArrowElement,
   Arrowhead,
   FontFamilyValues,
   FileId,
@@ -160,7 +161,8 @@ export type ToolType =
   | "frame"
   | "magicframe"
   | "embeddable"
-  | "laser";
+  | "laser"
+  | "autoshape";
 
 export type ElementOrToolType = ExcalidrawElementType | ToolType | "custom";
 
@@ -230,6 +232,7 @@ export type InteractiveCanvasAppState = Readonly<
     isMidpointSnappingEnabled: AppState["isMidpointSnappingEnabled"];
     gridModeEnabled: AppState["gridModeEnabled"];
     suggestedBinding: AppState["suggestedBinding"];
+    hoveredArrowTextAnchor: AppState["hoveredArrowTextAnchor"];
     isRotating: AppState["isRotating"];
     elementsToHighlight: AppState["elementsToHighlight"];
     // Collaborators
@@ -363,6 +366,15 @@ export interface AppState {
   suggestedBinding: {
     element: NonDeleted<ExcalidrawBindableElement>;
     midPoint?: GlobalPoint;
+  } | null;
+  /**
+   * Where on a hovered arrow the text tool would attach text if clicked —
+   * a free endpoint (binds the arrow to a new text element positioned against
+   * that endpoint) or the arrow's midpoint (adds a label bound to the arrow).
+   */
+  hoveredArrowTextAnchor: {
+    elementId: ExcalidrawArrowElement["id"];
+    anchor: "start" | "end" | "label";
   } | null;
   frameToHighlight: NonDeleted<ExcalidrawFrameLikeElement> | null;
   frameRendering: {
@@ -557,6 +569,7 @@ export type UIAppState = Omit<
   | "snapLines"
   | "originSnapOffset"
   | "suggestedBinding"
+  | "hoveredArrowTextAnchor"
   | "frameToHighlight"
   | "elementsToHighlight"
 >;
@@ -1085,6 +1098,7 @@ export type AppClassProperties = {
   getName: App["getName"];
   dismissLinearEditor: App["dismissLinearEditor"];
   flowchart: App["flowchart"];
+  drawShape: App["drawShape"];
   cursor: App["cursor"];
   isToolLocked: App["isToolLocked"];
   getEffectiveGridSize: App["getEffectiveGridSize"];
