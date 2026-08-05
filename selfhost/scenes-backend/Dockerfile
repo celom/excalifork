@@ -10,12 +10,12 @@ RUN mkdir -p /data && chown -R node:node /data /app
 
 USER node
 
-ENV PORT=8080 \
+ENV PORT=80 \
     DATA_DIR=/data
 
-EXPOSE 8080
+EXPOSE 80
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
-  CMD wget -q -O /dev/null http://localhost:8080/healthz || exit 1
+  CMD wget -q -O /dev/null http://localhost/healthz || exit 1
 
 CMD ["node", "index.js"]

@@ -12,6 +12,15 @@ GET  <base>/api/v2/scenes/<id>           -> the same bytes
 GET  /healthz                            -> ok
 ```
 
+The `json.excalidraw.com` path shape is accepted as well, so pointing an existing `VITE_APP_BACKEND_V2_*` pair at this host works by changing only the domain — swapping just the host is the obvious thing to try, and 404ing it would be a trap:
+
+```
+POST <base>/api/v2/post/       raw body  -> {"id": "..."}
+GET  <base>/api/v2/<id>                  -> the same bytes
+```
+
+Ids are interchangeable between the two: a scene created through one shape reads back through the other.
+
 Ids are base64url, matching the share-link hash regex the app parses on load (`excalidraw-app/App.tsx:238`). The GET build arg needs a trailing slash — the app concatenates the id straight onto it (`excalidraw-app/data/index.ts:207`).
 
 Node stdlib only: no dependencies, no install step, no lockfile, nothing to patch for CVEs. Runs as the unprivileged `node` user.
@@ -24,7 +33,7 @@ Node stdlib only: no dependencies, no install step, no lockfile, nothing to patc
 | `MAX_SCENE_BYTES` | `10485760` | Past this the app shows its "too big" message |
 | `DATA_DIR` | `/data` | Where scenes are written, sharded two chars deep |
 | `BASE_PATH` | `/api/v2/scenes` | Stripped if present, so a path-routed proxy can forward either form |
-| `PORT` | `8080` |  |
+| `PORT` | `80` | Bindable as non-root; Docker sets `ip_unprivileged_port_start=0` |
 
 Leaving `ALLOWED_ORIGINS` empty allows every origin and is only sensible on a private network. The compose file requires it.
 

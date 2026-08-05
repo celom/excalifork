@@ -56,8 +56,9 @@
 #                              Defaults to Excalidraw's public service.
 #
 # In Coolify: create a "Docker Compose" resource pointing at this file, then
-# assign a domain to `excalidraw` (port 80), a second to `excalidraw-room`
-# (port 80), and a third to `excalidraw-scenes` (port 8080).
+# assign a domain to each of `excalidraw`, `excalidraw-room` and
+# `excalidraw-scenes`. All three listen on port 80, so no per-service port
+# suffix is needed in Coolify's domain field.
 #
 # Values are deliberately NOT hardcoded here. Coolify parses this file and
 # surfaces every ${VAR} in its Environment Variables UI — ${VAR:?...} marked

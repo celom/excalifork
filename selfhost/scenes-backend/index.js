@@ -32,6 +32,8 @@ const DATA_DIR = process.env.DATA_DIR || "/data";
 // Where the app addresses this service. Requests may also arrive at the root,
 // so that a path-routed proxy can strip the prefix before forwarding.
 const BASE_PATH = process.env.BASE_PATH || "/api/v2/scenes";
+const UPSTREAM_PATH = "/api/v2";
+const UPSTREAM_POST_SEGMENT = "post";
 const MAX_SCENE_BYTES = Number(process.env.MAX_SCENE_BYTES || 10 * 1024 * 1024);
 // Comma-separated and matched exactly, scheme included. Empty allows any
 // origin, which is only sensible behind a private network.
@@ -182,10 +184,19 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  // BASE_PATH is checked first: it starts with UPSTREAM_PATH, so the looser
+  // prefix would otherwise swallow it.
   if (route.startsWith(BASE_PATH)) {
     route = route.slice(BASE_PATH.length);
+  } else if (route.startsWith(UPSTREAM_PATH)) {
+    route = route.slice(UPSTREAM_PATH.length);
   }
-  const id = route.replace(/^\/+/, "");
+
+  let id = route.replace(/^\/+/, "").replace(/\/+$/, "");
+  // POST /api/v2/post/ means "create", same as POST to the base path.
+  if (req.method === "POST" && id === UPSTREAM_POST_SEGMENT) {
+    id = "";
+  }
 
   try {
     if (req.method === "POST" && !id) {
