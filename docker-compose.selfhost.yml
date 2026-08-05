@@ -13,16 +13,26 @@
 #                            in your proxy — NOT the internal compose
 #                            hostname.
 #
-#   SCENES_URL               Public HTTPS URL of the excalidraw-scenes service
-#                            (e.g. https://scenes.example.com). Same rule: the
-#                            browser talks to it directly.
+#   VITE_APP_BACKEND_V2_GET_URL  and  VITE_APP_BACKEND_V2_POST_URL
+#                            The excalidraw-scenes service, as the browser
+#                            reaches it — the public domain you assign to that
+#                            service, NOT the internal compose hostname:
 #
-#                            This one is not optional on a custom domain.
+#                              GET   https://scenes.example.com/api/v2/scenes/
+#                              POST  https://scenes.example.com/api/v2/scenes
+#
+#                            Mind the trailing slash: it is required on GET and
+#                            must be absent on POST.
+#
+#                            These are not optional on a custom domain.
 #                            Excalidraw's public json.excalidraw.com only
 #                            returns CORS headers to origins on its own
 #                            allowlist, so from a self-hosted domain the POST
 #                            succeeds but the browser blocks the response and
 #                            the app reports "Couldn't create shareable link".
+#                            Unset, Vite falls back to exactly that default
+#                            from .env.production, so the failure is silent —
+#                            the build succeeds and the app ships broken.
 #
 #   SCENES_ALLOWED_ORIGINS   Comma-separated origins allowed to create and read
 #                            share links, matched exactly, scheme included
@@ -74,10 +84,19 @@ services:
       args:
         - VITE_APP_WS_SERVER_URL=${VITE_APP_WS_SERVER_URL:?Set VITE_APP_WS_SERVER_URL to the public URL of the excalidraw-room service}
         - VITE_APP_FIREBASE_CONFIG=${VITE_APP_FIREBASE_CONFIG:-}
+        # Set these two to the excalidraw-scenes service, e.g.
+        #   GET  https://scenes.example.com/api/v2/scenes/
+        #   POST https://scenes.example.com/api/v2/scenes
         # The trailing slash on the GET URL is required: the app concatenates
         # the scene id straight onto it (excalidraw-app/data/index.ts:207).
-        - VITE_APP_BACKEND_V2_GET_URL=${SCENES_URL:?Set SCENES_URL to the public URL of the excalidraw-scenes service}/api/v2/scenes/
-        - VITE_APP_BACKEND_V2_POST_URL=${SCENES_URL:?Set SCENES_URL to the public URL of the excalidraw-scenes service}/api/v2/scenes
+        #
+        # Each build arg is named identically to the variable it reads. That is
+        # not cosmetic — Coolify passes --build-arg for the variables in its own
+        # UI, and those override this block, so an arg derived from a
+        # differently-named variable silently arrives empty and Vite falls back
+        # to .env.production (i.e. json.excalidraw.com, and share links break).
+        - VITE_APP_BACKEND_V2_GET_URL=${VITE_APP_BACKEND_V2_GET_URL:?Set VITE_APP_BACKEND_V2_GET_URL to the excalidraw-scenes service, ending /api/v2/scenes/ WITH a trailing slash}
+        - VITE_APP_BACKEND_V2_POST_URL=${VITE_APP_BACKEND_V2_POST_URL:?Set VITE_APP_BACKEND_V2_POST_URL to the excalidraw-scenes service, ending /api/v2/scenes with NO trailing slash}
         - VITE_APP_AI_BACKEND=${VITE_APP_AI_BACKEND:-https://oss-ai.excalidraw.com}
         - VITE_APP_ENABLE_TRACKING=${VITE_APP_ENABLE_TRACKING:-false}
     restart: unless-stopped
