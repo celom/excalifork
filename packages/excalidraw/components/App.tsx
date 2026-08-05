@@ -282,7 +282,6 @@ import type {
   ExcalidrawEmbeddableElement,
   Ordered,
   MagicGenerationData,
-  Arrowhead,
   ExcalidrawArrowElement,
   ExcalidrawElbowArrowElement,
   SceneElementsMap,
@@ -433,6 +432,7 @@ import ConvertElementTypePopup, {
 
 import { activeConfirmDialogAtom } from "./ActiveConfirmDialog";
 import { AppArrowText } from "./App.arrowText";
+import { AppBucketFill } from "./App.bucketFill";
 import { AppCursor } from "./App.cursor";
 import { AppDrawShape } from "./App.drawshape";
 import { AppFlowchart } from "./App.flowchart";
@@ -440,7 +440,7 @@ import { AppViewport, RIGHT_SIDEBAR_WIDTH } from "./App.viewport";
 import BraveMeasureTextError from "./BraveMeasureTextError";
 import { ContextMenu, CONTEXT_MENU_SEPARATOR } from "./ContextMenu";
 import { activeEyeDropperAtom } from "./EyeDropper";
-import FollowMode from "./FollowMode/FollowMode";
+import ViewportStatusFrame from "./ViewportStatusFrame/ViewportStatusFrame";
 import LayerUI from "./LayerUI";
 import { ElementCanvasButton } from "./MagicButton";
 import { SVGLayer } from "./SVGLayer";
@@ -682,6 +682,7 @@ class App extends React.Component<AppProps, AppState> {
 
   public onStateChange: OnStateChange = this.appStateObserver.onStateChange;
 
+  public bucketFill: AppBucketFill = new AppBucketFill(this);
   public flowchart: AppFlowchart = new AppFlowchart(this);
   public cursor: AppCursor = new AppCursor(this);
   public arrowText: AppArrowText = new AppArrowText(this);
@@ -708,9 +709,6 @@ class App extends React.Component<AppProps, AppState> {
   /** current frame pointer cords */
   lastPointerMoveCoords: { x: number; y: number } | null = null;
   private lastCompletedCanvasClicks: { x: number; y: number }[] = [];
-  /** arrowheads removed via endpoint double-click toggle, so a subsequent
-   * toggle can restore the original arrowhead (keyed by `elementId:side`) */
-  private removedArrowheads = new Map<string, Arrowhead>();
   /** previous frame pointer coords */
   previousPointerMoveCoords: { x: number; y: number } | null = null;
 
@@ -1017,10 +1015,11 @@ class App extends React.Component<AppProps, AppState> {
 
   /**
    * Whether the active tool captures the primary pointer instead of the
-   * view-mode drag-to-pan — the laser always does; while non-interactive,
-   * any tool allowed via `interaction.enabled.tools` does. (Editing tools
-   * capture the pointer trivially since view mode implies they're not
-   * active; this predicate only matters where view-mode gates apply.)
+   * view-mode drag-to-pan — the laser and host-implemented custom tools do;
+   * while non-interactive, any tool allowed via
+   * `interaction.enabled.tools` does. (Editing tools capture the pointer
+   * trivially since view mode implies they're not active; this predicate only
+   * matters where view-mode gates apply.)
    */
   public isActiveToolPointerCapturing(): boolean {
     if (!this.isInteractionEnabled()) {
@@ -1028,7 +1027,10 @@ class App extends React.Component<AppProps, AppState> {
       // is inert — including the laser
       return this.isToolSupported(this.state.activeTool.type);
     }
-    return this.state.activeTool.type === "laser";
+    return (
+      this.state.activeTool.type === "laser" ||
+      this.state.activeTool.type === "custom"
+    );
   }
 
   /** Whether Excalidraw's full default UI is rendered. */
@@ -2353,6 +2355,8 @@ class App extends React.Component<AppProps, AppState> {
           "excalidraw--allow-browser-zoom":
             !this.isInteractionEnabled() && this.isBrowserZoomEnabled(),
           "excalidraw--ui-hidden": !this.isDefaultUIEnabled(),
+          "excalidraw--viewport-status-label":
+            !!this.props.viewportStatusFrame?.label,
         })}
         style={{
           ["--ui-pointerEvents" as any]: shouldBlockPointerEvents
@@ -2433,6 +2437,7 @@ class App extends React.Component<AppProps, AppState> {
                             generateLinkForSelection={
                               this.props.generateLinkForSelection
                             }
+                            currentUserControls={this.props.currentUserControls}
                           >
                             {this.props.children}
                           </LayerUI>
@@ -2638,15 +2643,11 @@ class App extends React.Component<AppProps, AppState> {
                             onPointerDown={this.handleCanvasPointerDown}
                             onDoubleClick={this.handleCanvasDoubleClick}
                           />
-                          {this.isDefaultUIEnabled() &&
-                            this.state.userToFollow && (
-                              <FollowMode
-                                width={this.state.width}
-                                height={this.state.height}
-                                userToFollow={this.state.userToFollow}
-                                onDisconnect={this.maybeUnfollowRemoteUser}
-                              />
-                            )}
+                          {this.props.viewportStatusFrame && (
+                            <ViewportStatusFrame
+                              status={this.props.viewportStatusFrame}
+                            />
+                          )}
                           {this.renderFrameNames()}
                           {this.isDefaultUIEnabled() &&
                             this.state.activeLockedId && (
@@ -3088,6 +3089,8 @@ class App extends React.Component<AppProps, AppState> {
       this.scene.triggerUpdate();
     }
   });
+
+  public scheduleCapture = () => this.store.scheduleCapture();
 
   // Lifecycle
 
@@ -4099,14 +4102,6 @@ class App extends React.Component<AppProps, AppState> {
       this.setState({ showWelcomeScreen: true });
     }
 
-    const hasFollowedPersonLeft =
-      prevState.userToFollow &&
-      !this.state.collaborators.has(prevState.userToFollow.socketId);
-
-    if (hasFollowedPersonLeft) {
-      this.maybeUnfollowRemoteUser();
-    }
-
     if (
       prevState.zoom.value !== this.state.zoom.value ||
       prevState.scrollX !== this.state.scrollX ||
@@ -4122,22 +4117,6 @@ class App extends React.Component<AppProps, AppState> {
         this.state.scrollY,
         this.state.zoom,
       );
-    }
-
-    if (prevState.userToFollow !== this.state.userToFollow) {
-      if (prevState.userToFollow) {
-        this.onUserFollowEmitter.trigger({
-          userToFollow: prevState.userToFollow,
-          action: "UNFOLLOW",
-        });
-      }
-
-      if (this.state.userToFollow) {
-        this.onUserFollowEmitter.trigger({
-          userToFollow: this.state.userToFollow,
-          action: "FOLLOW",
-        });
-      }
     }
 
     if (
@@ -4762,22 +4741,10 @@ class App extends React.Component<AppProps, AppState> {
           editorJotaiStore.get(isSidebarDockedAtom)
             ? this.state.openSidebar
             : null,
-        ...selectGroupsForSelectedElements(
-          {
-            editingGroupId: null,
-            selectedElementIds: nextElementsToSelect.reduce(
-              (acc: Record<ExcalidrawElement["id"], true>, element) => {
-                if (!isBoundToContainer(element)) {
-                  acc[element.id] = true;
-                }
-                return acc;
-              },
-              {},
-            ),
-          },
+        ...getSelectionStateForElements(
+          nextElementsToSelect,
           this.scene.getNonDeletedElements(),
           this.state,
-          this,
         ),
       },
       () => {
@@ -4985,6 +4952,12 @@ class App extends React.Component<AppProps, AppState> {
       this.resetContextMenuTimer();
     }
 
+    if (event.type === "pointercancel") {
+      // the browser took the pointer over (scroll, palm rejection) — no
+      // pointerup will follow, so the armed bucket fill must not commit
+      this.bucketFill.cancel();
+    }
+
     const wasMultiTouchGesture = gesture.pointers.size >= 2;
     gesture.pointers.delete(event.pointerId);
 
@@ -5095,9 +5068,22 @@ class App extends React.Component<AppProps, AppState> {
     });
   };
 
-  private maybeUnfollowRemoteUser = () => {
-    if (this.state.userToFollow) {
-      this.setState({ userToFollow: null });
+  /** emits a follow/unfollow intent to the host (which owns the
+   *  `userToFollow` state) via both the `onUserFollow` prop and the
+   *  imperative API emitter */
+  public emitUserFollowIntent = (payload: OnUserFollowedPayload) => {
+    this.onUserFollowEmitter.trigger(payload);
+    this.props.onUserFollow?.(payload);
+  };
+
+  /** emits an UNFOLLOW intent if currently following someone — use on
+   *  user-initiated viewport changes which should break follow mode */
+  public requestUnfollow = () => {
+    if (this.props.userToFollow) {
+      this.emitUserFollowIntent({
+        userToFollow: this.props.userToFollow,
+        action: "UNFOLLOW",
+      });
     }
   };
 
@@ -6431,7 +6417,7 @@ class App extends React.Component<AppProps, AppState> {
   };
 
   // NOTE: Hot path for hit testing, so avoid unnecessary computations
-  getElementAtPosition(
+  public getElementAtPosition(
     x: number,
     y: number,
     opts?: (
@@ -6940,49 +6926,6 @@ class App extends React.Component<AppProps, AppState> {
     );
   };
 
-  /**
-   * Toggles the arrowhead at the given endpoint between no arrowhead and the
-   * arrowhead it had before the last toggle (falling back to the current
-   * default arrowhead).
-   */
-  private toggleArrowheadAtEndpoint = (
-    element: ExcalidrawArrowElement,
-    side: "start" | "end",
-  ) => {
-    const currentArrowhead =
-      side === "start" ? element.startArrowhead : element.endArrowhead;
-
-    this.store.scheduleCapture();
-
-    let arrowheadUpdate:
-      | { startArrowhead: Arrowhead | null }
-      | { endArrowhead: Arrowhead | null };
-
-    if (currentArrowhead) {
-      this.removedArrowheads.set(`${element.id}:${side}`, currentArrowhead);
-      arrowheadUpdate =
-        side === "start" ? { startArrowhead: null } : { endArrowhead: null };
-    } else {
-      const arrowhead =
-        this.removedArrowheads.get(`${element.id}:${side}`) ??
-        (side === "start"
-          ? this.state.currentItemStartArrowhead
-          : this.state.currentItemEndArrowhead) ??
-        "arrow";
-      arrowheadUpdate =
-        side === "start"
-          ? { startArrowhead: arrowhead }
-          : { endArrowhead: arrowhead };
-    }
-
-    this.scene.mapElements((_element) => {
-      if (_element.id === element.id && isArrowElement(_element)) {
-        return newElementWith(_element, arrowheadUpdate);
-      }
-      return _element;
-    });
-  };
-
   private handleCanvasDoubleClick = (
     event: Pick<
       React.MouseEvent<HTMLCanvasElement>,
@@ -7028,30 +6971,6 @@ class App extends React.Component<AppProps, AppState> {
     if (selectedElements.length === 1 && isLinearElement(selectedElements[0])) {
       const selectedLinearElement: ExcalidrawLinearElement =
         selectedElements[0];
-
-      if (
-        !event[KEYS.CTRL_OR_CMD] &&
-        isArrowElement(selectedLinearElement) &&
-        this.state.selectedLinearElement?.elementId === selectedLinearElement.id
-      ) {
-        const clickedPointIndex = LinearElementEditor.getPointIndexUnderCursor(
-          selectedLinearElement,
-          this.scene.getNonDeletedElementsMap(),
-          this.state.zoom,
-          sceneX,
-          sceneY,
-        );
-        if (
-          clickedPointIndex === 0 ||
-          clickedPointIndex === selectedLinearElement.points.length - 1
-        ) {
-          this.toggleArrowheadAtEndpoint(
-            selectedLinearElement,
-            clickedPointIndex === 0 ? "start" : "end",
-          );
-          return;
-        }
-      }
 
       if (
         ((event[KEYS.CTRL_OR_CMD] && isSimpleArrow(selectedLinearElement)) ||
@@ -7470,7 +7389,7 @@ class App extends React.Component<AppProps, AppState> {
    * finds candidate frame under cursor (when dragging frame children/elements
    * inside frames)
    */
-  private getTopLayerFrameAtSceneCoords = (
+  public getTopLayerFrameAtSceneCoords = (
     /**
      * should be already grid aligned (basically should be what the call site
      * sets the element's coords to, if applicable)
@@ -8397,7 +8316,11 @@ class App extends React.Component<AppProps, AppState> {
     }
 
     this.maybeCleanupAfterMissingPointerUp(event.nativeEvent);
-    this.maybeUnfollowRemoteUser();
+    // laser pointer is a presentation aid, not an edit — using it while
+    // following someone shouldn't break follow
+    if (this.state.activeTool.type !== "laser") {
+      this.requestUnfollow();
+    }
 
     if (this.state.searchMatches) {
       this.setState((state) => {
@@ -8787,6 +8710,17 @@ class App extends React.Component<AppProps, AppState> {
       );
     } else if (this.state.activeTool.type === "autoshape") {
       this.drawShape.handlePointerDown(pointerDownState);
+    } else if (this.state.activeTool.type === TOOL_TYPE.bucketfill) {
+      // one-shot click tool: pointer down only ARMS the fill — it commits in
+      // the shared pointer-up teardown, and only when the interaction stayed
+      // a single-pointer click (a second finger, a context menu, or a
+      // pointercancel aborts it). Dispatched like any other tool (laser has
+      // the same shape) so the shared pointer lifecycle below — public
+      // onPointerDown/onPointerUp callbacks, pointer-up teardown,
+      // missing-pointer-up cleanup — runs for bucket clicks too. In view
+      // mode this branch is unreachable:
+      // `handleCanvasPanUsingWheelOrSpaceDrag` swallows the pointer-down.
+      this.bucketFill.handlePointerDown(scenePointer);
     } else if (
       this.state.activeTool.type !== "eraser" &&
       this.state.activeTool.type !== "hand" &&
@@ -10692,6 +10626,7 @@ class App extends React.Component<AppProps, AppState> {
                   initialState: ret.pointerDownState,
                   selectedPointsIndices: ret.selectedPointsIndices,
                   segmentMidPointHoveredCoords: null,
+                  isDragging: true,
                 },
               });
             }
@@ -11446,6 +11381,20 @@ class App extends React.Component<AppProps, AppState> {
       pointerDownState.drag.blockDragging = false;
       if (pointerDownState.eventListeners.onMove) {
         pointerDownState.eventListeners.onMove.flush();
+      }
+
+      // an armed bucket fill commits only on a GENUINE pointer up. The
+      // missing-pointer-up cleanup replays this handler with the pointer
+      // DOWN event (e.g. when a second finger lands mid-press — pinch/pan
+      // intent), and a tool switch mid-press orphans the click — both must
+      // discard the fill instead of committing an unwanted edit.
+      if (
+        childEvent.type === "pointerup" &&
+        this.state.activeTool.type === TOOL_TYPE.bucketfill
+      ) {
+        this.bucketFill.handlePointerUp();
+      } else {
+        this.bucketFill.cancel();
       }
       const {
         newElement,
@@ -12418,6 +12367,9 @@ class App extends React.Component<AppProps, AppState> {
       if (
         !this.isToolLocked() &&
         activeTool.type !== "freedraw" &&
+        // bucket fill stays active for back-to-back fills regardless of the
+        // tool lock (paint-bucket UX)
+        activeTool.type !== TOOL_TYPE.bucketfill &&
         (activeTool.type !== "lasso" ||
           // if lasso is turned on but from selection => reset to selection
           (activeTool.type === "lasso" && activeTool.fromSelection))
@@ -13166,6 +13118,10 @@ class App extends React.Component<AppProps, AppState> {
     if (!this.isInteractionEnabled()) {
       return;
     }
+
+    // a context menu during a press (touch long-press) means the user is
+    // not committing a bucket click
+    this.bucketFill.cancel();
 
     if (
       (("pointerType" in event.nativeEvent &&
