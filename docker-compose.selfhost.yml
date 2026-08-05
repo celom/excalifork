@@ -1,9 +1,10 @@
-# Self-hosting compose file (e.g. for Coolify): app + collaboration room server.
+# Self-hosting compose file (e.g. for Coolify): app + collaboration room server
+# + share-link scene storage.
 #
 # The VITE_APP_* values are baked into the static bundle at BUILD time —
 # changing them requires a rebuild, not a restart.
 #
-# Required environment variable (set it in Coolify's env UI or a .env file):
+# Required environment variables (set them in Coolify's env UI or a .env file):
 #
 #   VITE_APP_WS_SERVER_URL   Public HTTPS URL of the excalidraw-room service
 #                            (e.g. https://room.example.com). The browser
@@ -12,26 +13,59 @@
 #                            in your proxy — NOT the internal compose
 #                            hostname.
 #
+#   SCENES_URL               Public HTTPS URL of the excalidraw-scenes service
+#                            (e.g. https://scenes.example.com). Same rule: the
+#                            browser talks to it directly.
+#
+#                            This one is not optional on a custom domain.
+#                            Excalidraw's public json.excalidraw.com only
+#                            returns CORS headers to origins on its own
+#                            allowlist, so from a self-hosted domain the POST
+#                            succeeds but the browser blocks the response and
+#                            the app reports "Couldn't create shareable link".
+#
+#   SCENES_ALLOWED_ORIGINS   Comma-separated origins allowed to create and read
+#                            share links, matched exactly, scheme included
+#                            (e.g. https://example.com,https://www.example.com).
+#
 # Optional:
 #
 #   VITE_APP_FIREBASE_CONFIG   JSON config of your own Firebase project, used
-#                              by collab for scene persistence and image/file
+#                              by collab for room persistence and image/file
 #                              sharing. Defaults to empty: live collaboration
 #                              still works, but images don't sync and rooms
-#                              aren't persisted after everyone leaves.
+#                              aren't persisted after everyone leaves. Note
+#                              this is separate from share links, which the
+#                              excalidraw-scenes service handles.
 #
-#   VITE_APP_BACKEND_V2_GET_URL / VITE_APP_BACKEND_V2_POST_URL
-#                              "Export to link" storage backend. Defaults to
-#                              Excalidraw's public json.excalidraw.com. Point
-#                              at a self-hosted excalidraw-storage-backend to
-#                              keep share links on your own infra.
+#   SCENES_MAX_BYTES           Largest accepted scene, in bytes. Default 10 MiB.
+#                              Past it the app shows its "too big" message
+#                              rather than a generic failure.
 #
 #   VITE_APP_AI_BACKEND        Backend for AI features (text-to-diagram etc.).
 #                              Defaults to Excalidraw's public service.
 #
-# In Coolify: create a "Docker Compose" resource pointing at this file, set
-# the env vars above, then assign a domain to `excalidraw` (port 80) and a
-# second domain to `excalidraw-room` (port 80).
+# In Coolify: create a "Docker Compose" resource pointing at this file, then
+# assign a domain to `excalidraw` (port 80), a second to `excalidraw-room`
+# (port 80), and a third to `excalidraw-scenes` (port 8080).
+#
+# Values are deliberately NOT hardcoded here. Coolify parses this file and
+# surfaces every ${VAR} in its Environment Variables UI — ${VAR:?...} marked
+# required, ${VAR:-default} prefilled — whereas a hardcoded value is passed to
+# the container but hidden from the UI, so it can only be changed by editing
+# this file. Set the values there.
+#
+# Two Coolify-specific gotchas for the VITE_APP_* args, which must exist at
+# BUILD time or the bundle ships with the wrong URLs:
+#
+#   - Leave the "Build Variable?" / "Runtime Variable?" toggles at their
+#     defaults (both on). The build args below resolve through the .env file
+#     Coolify writes next to this compose file, which is the runtime path.
+#     Marking a variable build-only is reported not to work for compose
+#     deployments — it goes to a separate build-time.env that compose
+#     interpolation never reads.
+#   - Mark VITE_APP_FIREBASE_CONFIG "Is Literal?" so its braces and quotes are
+#     passed through untouched.
 
 services:
   excalidraw:
@@ -40,8 +74,10 @@ services:
       args:
         - VITE_APP_WS_SERVER_URL=${VITE_APP_WS_SERVER_URL:?Set VITE_APP_WS_SERVER_URL to the public URL of the excalidraw-room service}
         - VITE_APP_FIREBASE_CONFIG=${VITE_APP_FIREBASE_CONFIG:-}
-        - VITE_APP_BACKEND_V2_GET_URL=${VITE_APP_BACKEND_V2_GET_URL:-https://json.excalidraw.com/api/v2/}
-        - VITE_APP_BACKEND_V2_POST_URL=${VITE_APP_BACKEND_V2_POST_URL:-https://json.excalidraw.com/api/v2/post/}
+        # The trailing slash on the GET URL is required: the app concatenates
+        # the scene id straight onto it (excalidraw-app/data/index.ts:207).
+        - VITE_APP_BACKEND_V2_GET_URL=${SCENES_URL:?Set SCENES_URL to the public URL of the excalidraw-scenes service}/api/v2/scenes/
+        - VITE_APP_BACKEND_V2_POST_URL=${SCENES_URL:?Set SCENES_URL to the public URL of the excalidraw-scenes service}/api/v2/scenes
         - VITE_APP_AI_BACKEND=${VITE_APP_AI_BACKEND:-https://oss-ai.excalidraw.com}
         - VITE_APP_ENABLE_TRACKING=${VITE_APP_ENABLE_TRACKING:-false}
     restart: unless-stopped
@@ -58,3 +94,20 @@ services:
       retries: 3
       start_period: 15s
     restart: unless-stopped
+
+  excalidraw-scenes:
+    # Share-link storage. Scenes are encrypted in the browser before upload and
+    # the key stays in the URL fragment, so this service only holds opaque
+    # bytes — but back the volume up, because losing it breaks every link ever
+    # shared from this instance.
+    build:
+      context: ./selfhost/scenes-backend
+    environment:
+      - ALLOWED_ORIGINS=${SCENES_ALLOWED_ORIGINS:?Set SCENES_ALLOWED_ORIGINS to the origins allowed to create share links}
+      - MAX_SCENE_BYTES=${SCENES_MAX_BYTES:-10485760}
+    volumes:
+      - scenes-data:/data
+    restart: unless-stopped
+
+volumes:
+  scenes-data:

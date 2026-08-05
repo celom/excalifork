@@ -7,5 +7,9 @@ service firebase.storage {
     match /{files}/shareLinks/{shareLink}/{file} {
     	allow get, write: if true;
     }
+    // Note: share-link scenes are not stored in Firebase at all — the
+    // excalidraw-scenes service in docker-compose.selfhost.yml holds them on a
+    // volume. Only images belonging to rooms and share links live here, which
+    // is why the two paths above are the whole ruleset.
   }
 }
