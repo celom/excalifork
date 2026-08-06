@@ -82,9 +82,21 @@ export const loadSceneImages = (
 export const applyStoredScene = async (
   id: SceneId,
   excalidrawAPI: ExcalidrawImperativeAPI,
-) => {
+): Promise<boolean> => {
   const index = getScenesIndex();
   const meta = index.scenes.find((scene) => scene.id === id);
+
+  // A scene whose metadata exists but whose payload does not (only a cloud
+  // pull produces this) must NOT be rendered — below, missing keys are read
+  // as an empty scene, which is correct for a never-yet-saved scene and
+  // catastrophic for an undownloaded one: the autosave would persist the
+  // emptiness and it would replicate over the real data. Bail without
+  // touching the editor; the caller keeps showing the previous scene.
+  if (meta?.materialized === false) {
+    console.warn(`scene ${id} is not materialized locally — not applying`);
+    return false;
+  }
+
   // missing scene keys ≡ empty scene (e.g. a new scene before its first save)
   const data = await scenesStorage.loadScene(id);
 
@@ -113,6 +125,7 @@ export const applyStoredScene = async (
   });
 
   loadSceneImages(excalidrawAPI, elements);
+  return true;
 };
 
 export const switchToScene = async (
@@ -131,8 +144,8 @@ export const switchToScene = async (
   LocalData.flushSave();
   LocalData.pauseSave("switchingScene");
   try {
-    // re-read — the flush above may have bumped the outgoing scene's meta
-    setScenesIndex({ ...getScenesIndex(), activeSceneId: id });
+    // updater form — the flush above may have bumped the outgoing scene's meta
+    setScenesIndex((prev) => ({ ...prev, activeSceneId: id }));
     await applyStoredScene(id, excalidrawAPI);
   } finally {
     LocalData.resumeSave("switchingScene");
@@ -196,17 +209,16 @@ export const importSceneFromData = async (
   LocalData.flushSave();
   LocalData.pauseSave("switchingScene");
   try {
-    // re-read — the flush above may have bumped the outgoing scene's meta
-    const currentIndex = getScenesIndex();
+    // updater form — the flush above may have bumped the outgoing scene's meta
     const now = Date.now();
-    setScenesIndex({
-      ...currentIndex,
+    setScenesIndex((prev) => ({
+      ...prev,
       activeSceneId: id,
       scenes: [
-        ...currentIndex.scenes,
+        ...prev.scenes,
         { id, name: sceneName, createdAt: now, updatedAt: now, collectionId },
       ],
-    });
+    }));
     await applyStoredScene(id, excalidrawAPI);
   } finally {
     LocalData.resumeSave("switchingScene");
@@ -302,20 +314,21 @@ export const duplicateScene = async (id: SceneId) => {
   }
 
   const now = Date.now();
-  const currentIndex = getScenesIndex();
-  setScenesIndex({
-    ...currentIndex,
+  // updater form — the load/save awaits above give other mutations a window
+  setScenesIndex((prev) => ({
+    ...prev,
     scenes: [
-      ...currentIndex.scenes,
+      ...prev.scenes,
       {
         id: newId,
         name: `${sourceMeta.name} (copy)`,
         createdAt: now,
         updatedAt: now,
         collectionId: sourceMeta.collectionId,
+        contentVersion: sourceMeta.contentVersion,
       },
     ],
-  });
+  }));
 };
 
 /**

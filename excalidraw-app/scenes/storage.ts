@@ -10,7 +10,14 @@
  *
  * The sync helpers are used by hot paths that must stay synchronous
  * (unload-time flush, quota error handling). `scenesStorage` wraps them
- * in an async adapter interface so a remote backend can be swapped in later.
+ * in an async adapter interface.
+ *
+ * That adapter is NOT the swap point for a cloud backend. Cloud storage is
+ * a mirror: localStorage stays the synchronous source of truth and a separate
+ * engine replicates it, because reads here are on paths that cannot await
+ * (`search.ts` runs inside a render, `LocalData.flushSave` runs on unload).
+ * What the adapter does buy is a cheap future move of scene blobs from
+ * localStorage to IndexedDB, which is the only way to lift the ~5MB ceiling.
  */
 
 import { isInitializedImageElement } from "@excalidraw/element";
@@ -43,6 +50,28 @@ export type SceneMeta = {
   updatedAt: number;
   /** missing/null ≡ root "Dashboard" collection */
   collectionId?: CollectionId | null;
+  /**
+   * `getSceneVersion` of the elements at the last save — a content-change
+   * detector, unlike `updatedAt`, which also bumps on pan/zoom because
+   * `clearAppStateForLocalStorage` persists scroll and zoom.
+   *
+   * Compare for INEQUALITY, never ordering: the value is a sum of element
+   * versions computed over the elements the editor holds, and deleted
+   * elements aren't persisted, so it can legitimately decrease across a
+   * reload. Absent on scenes written before this field existed.
+   */
+  contentVersion?: number;
+  /**
+   * Whether this scene's blob is actually present locally.
+   *
+   * Absent ≡ true, which keeps every existing index valid. Only a cloud pull
+   * sets it to false, for scenes whose metadata has arrived but whose payload
+   * has not. It exists because "no blob" would otherwise be indistinguishable
+   * from "empty scene" (a newly created scene writes no keys until its first
+   * edit) — and treating an undownloaded scene as empty would persist that
+   * emptiness and replicate it over the real data.
+   */
+  materialized?: boolean;
 };
 
 export type ScenesIndex = {

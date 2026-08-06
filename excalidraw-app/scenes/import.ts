@@ -275,56 +275,56 @@ export const applyArchiveImport = async (opts: {
   // phase 2: single index commit
   // ---------------------------------------------------------------------
   const commitIndex = () => {
-    // re-read — the flush above may have bumped the outgoing scene's meta
-    const index = getScenesIndex();
+    // updater form — the flush above may have bumped the outgoing scene's meta
+    setScenesIndex((index) => {
+      const collections = [...getCollections(index)];
+      const collectionPosition = new Map(
+        collections.map((collection, position) => [collection.id, position]),
+      );
+      for (const entry of manifest.collections) {
+        const targetId = mappedCollectionId(entry.id)!;
+        const imported: CollectionMeta = { ...entry, id: targetId };
+        if (opts.resolution === "keep-both" && collectionIdMap.has(entry.id)) {
+          imported.name = `${imported.name}${IMPORTED_SUFFIX}`;
+        }
+        const position = collectionPosition.get(targetId);
+        if (position !== undefined) {
+          collections[position] = imported;
+        } else {
+          collectionPosition.set(targetId, collections.length);
+          collections.push(imported);
+        }
+      }
 
-    const collections = [...getCollections(index)];
-    const collectionPosition = new Map(
-      collections.map((collection, position) => [collection.id, position]),
-    );
-    for (const entry of manifest.collections) {
-      const targetId = mappedCollectionId(entry.id)!;
-      const imported: CollectionMeta = { ...entry, id: targetId };
-      if (opts.resolution === "keep-both" && collectionIdMap.has(entry.id)) {
-        imported.name = `${imported.name}${IMPORTED_SUFFIX}`;
+      const scenes = [...index.scenes];
+      const scenePosition = new Map(
+        scenes.map((scene, position) => [scene.id, position]),
+      );
+      for (const entry of manifest.scenes) {
+        if (!importedSceneIds.has(entry.id)) {
+          continue;
+        }
+        const targetId = mappedSceneId(entry.id);
+        const imported: SceneMeta = {
+          id: targetId,
+          name: isRemappedScene(entry.id)
+            ? `${entry.name}${IMPORTED_SUFFIX}`
+            : entry.name,
+          createdAt: entry.createdAt,
+          updatedAt: entry.updatedAt,
+          collectionId: mappedCollectionId(entry.collectionId),
+        };
+        const position = scenePosition.get(targetId);
+        if (position !== undefined) {
+          scenes[position] = imported;
+        } else {
+          scenePosition.set(targetId, scenes.length);
+          scenes.push(imported);
+        }
       }
-      const position = collectionPosition.get(targetId);
-      if (position !== undefined) {
-        collections[position] = imported;
-      } else {
-        collectionPosition.set(targetId, collections.length);
-        collections.push(imported);
-      }
-    }
 
-    const scenes = [...index.scenes];
-    const scenePosition = new Map(
-      scenes.map((scene, position) => [scene.id, position]),
-    );
-    for (const entry of manifest.scenes) {
-      if (!importedSceneIds.has(entry.id)) {
-        continue;
-      }
-      const targetId = mappedSceneId(entry.id);
-      const imported: SceneMeta = {
-        id: targetId,
-        name: isRemappedScene(entry.id)
-          ? `${entry.name}${IMPORTED_SUFFIX}`
-          : entry.name,
-        createdAt: entry.createdAt,
-        updatedAt: entry.updatedAt,
-        collectionId: mappedCollectionId(entry.collectionId),
-      };
-      const position = scenePosition.get(targetId);
-      if (position !== undefined) {
-        scenes[position] = imported;
-      } else {
-        scenePosition.set(targetId, scenes.length);
-        scenes.push(imported);
-      }
-    }
-
-    setScenesIndex({ ...index, collections, scenes });
+      return { ...index, collections, scenes };
+    });
   };
 
   if (isActiveSceneOverwritten) {

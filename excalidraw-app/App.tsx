@@ -126,6 +126,7 @@ import {
   importUsernameFromLocalStorage,
 } from "./data/localStorage";
 
+import { initAuth } from "./data/auth";
 import { loadFilesFromFirebase } from "./data/firebase";
 import {
   LibraryIndexedDBAdapter,
@@ -396,6 +397,11 @@ const ExcalidrawWrapper = () => {
   const [langCode, setLangCode] = useAppLangCode();
 
   const editorInterface = useEditorInterface();
+
+  // attaches the Firebase auth listener (no-op unless VITE_APP_ENABLE_AUTH is
+  // set). Lives here rather than in the account menu because the menu unmounts
+  // when closed, and later phases need the session app-wide.
+  useEffect(() => initAuth(), []);
 
   // initial state
   // ---------------------------------------------------------------------------

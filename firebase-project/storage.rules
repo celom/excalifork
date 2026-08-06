@@ -9,7 +9,13 @@ service firebase.storage {
     }
     // Note: share-link scenes are not stored in Firebase at all — the
     // excalidraw-scenes service in docker-compose.selfhost.yml holds them on a
-    // volume. Only images belonging to rooms and share links live here, which
-    // is why the two paths above are the whole ruleset.
+    // volume. Only images belonging to rooms and share links live in the two
+    // paths above, which is why they were once the whole ruleset.
+
+    // Per-user workspace payloads: scene blobs, image files, library.
+    // The matches above are path-scoped, so they do not widen this one.
+    match /users/{uid}/{allPaths=**} {
+    	allow read, write: if request.auth != null && request.auth.uid == uid;
+    }
   }
 }

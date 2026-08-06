@@ -57,8 +57,21 @@ export const getActiveSceneId = (): SceneId => {
   return getScenesIndex().activeSceneId;
 };
 
-/** write-through: updates the atom and persists the index */
-export const setScenesIndex = (index: ScenesIndex) => {
+/**
+ * Write-through: updates the atom and persists the index.
+ *
+ * Prefer the updater form for any mutation that follows an `await` — it
+ * applies against the freshest index rather than one captured before the
+ * await, which is what the scene actions previously hand-rolled by re-reading
+ * `getScenesIndex()` right before writing. The direct-value form remains for
+ * callers that genuinely want to replace the whole index (tests, cross-tab
+ * refresh).
+ */
+export const setScenesIndex = (
+  update: ScenesIndex | ((prev: ScenesIndex) => ScenesIndex),
+) => {
+  const index =
+    typeof update === "function" ? update(getScenesIndex()) : update;
   appJotaiStore.set(scenesIndexAtom, index);
   try {
     saveIndexSync(index);

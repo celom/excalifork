@@ -2,8 +2,15 @@
  * Scene search over titles and scene text content.
  *
  * Content search scans the text elements persisted for each scene. The
- * extracted texts are cached per scene keyed on `updatedAt`, so after the
- * first scan a keystroke only costs substring checks over cached strings.
+ * extracted texts are cached per scene keyed on the scene's content version,
+ * so after the first scan a keystroke only costs substring checks over
+ * cached strings.
+ *
+ * The key is `contentVersion` rather than `updatedAt` because `updatedAt`
+ * also bumps on pan and zoom (they're part of the persisted appState), which
+ * would throw away the cache and re-scan every scene for no reason.
+ * `updatedAt` remains the fallback for scenes saved before `contentVersion`
+ * existed.
  */
 
 import { loadSceneSync } from "./storage";
@@ -16,12 +23,17 @@ export type SceneSearchMatch = {
   snippet: string | null;
 };
 
-type TextCacheEntry = { updatedAt: number; texts: string[] };
+type TextCacheEntry = { version: number; texts: string[] };
 const textCache = new Map<SceneId, TextCacheEntry>();
 
+/** content version if the scene has one, else `updatedAt` (pre-existing
+ * scenes, and scenes not yet re-saved since the field was added) */
+const cacheVersion = (meta: SceneMeta) => meta.contentVersion ?? meta.updatedAt;
+
 const getSceneTexts = (meta: SceneMeta): string[] => {
+  const version = cacheVersion(meta);
   const cached = textCache.get(meta.id);
-  if (cached && cached.updatedAt === meta.updatedAt) {
+  if (cached && cached.version === version) {
     return cached.texts;
   }
   const texts: string[] = [];
@@ -30,7 +42,7 @@ const getSceneTexts = (meta: SceneMeta): string[] => {
       texts.push(element.text);
     }
   }
-  textCache.set(meta.id, { updatedAt: meta.updatedAt, texts });
+  textCache.set(meta.id, { version, texts });
   return texts;
 };
 

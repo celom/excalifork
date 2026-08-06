@@ -64,6 +64,16 @@ const _initializeFirebase = () => {
   return firebaseApp;
 };
 
+/**
+ * The shared Firebase app instance. Exported so sibling modules (e.g.
+ * `data/auth.ts`) attach to the same app rather than calling `initializeApp`
+ * a second time, which would register a duplicate default app.
+ */
+export const getFirebaseApp = () => _initializeFirebase();
+
+/** the parsed `VITE_APP_FIREBASE_CONFIG`, `{}` when unset or unparseable */
+export const getFirebaseConfig = () => FIREBASE_CONFIG;
+
 const _getFirestore = () => {
   if (!firestore) {
     firestore = getFirestore(_initializeFirebase());

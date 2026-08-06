@@ -26,7 +26,7 @@ import {
   get,
 } from "idb-keyval";
 
-import { getNonDeletedElements } from "@excalidraw/element";
+import { getNonDeletedElements, getSceneVersion } from "@excalidraw/element";
 
 import type { LibraryPersistedData } from "@excalidraw/excalidraw/data/library";
 import type { ImportedDataState } from "@excalidraw/excalidraw/data/types";
@@ -88,9 +88,18 @@ const saveDataStateToLocalStorage = (
   );
   try {
     const index = getScenesIndex();
-    if (!index.scenes.some((scene) => scene.id === sceneId)) {
+    const meta = index.scenes.find((scene) => scene.id === sceneId);
+    if (!meta) {
       // scene was deleted while this save was pending — don't write
       // orphaned keys
+      return;
+    }
+    if (meta.materialized === false) {
+      // the payload hasn't been downloaded yet, so whatever the editor is
+      // holding is not this scene's content. Writing it would persist an
+      // empty/wrong scene over the real one. `applyStoredScene` refuses to
+      // load these, so this should be unreachable — belt and braces on the
+      // path that would actually destroy data.
       return;
     }
 
@@ -108,6 +117,11 @@ const saveDataStateToLocalStorage = (
       appState: _appState,
     });
 
+    // content-change detector for the cloud sync engine. Deliberately
+    // computed over ALL elements, including deleted ones: a deletion bumps
+    // the element's version, so the sum changes and the delete is detected.
+    const contentVersion = getSceneVersion(elements);
+
     setScenesIndex({
       ...index,
       scenes: index.scenes.map((scene) =>
@@ -117,6 +131,7 @@ const saveDataStateToLocalStorage = (
               // appState.name is synced back so renames via the export
               // dialog's ProjectName field flow into the index
               name: appState.name || scene.name,
+              contentVersion,
               updatedAt: Date.now(),
             }
           : scene,
@@ -140,7 +155,7 @@ export const isQuotaExceededError = (error: any) => {
   return error instanceof DOMException && error.name === "QuotaExceededError";
 };
 
-type SavingLockTypes = "collaboration" | "switchingScene";
+type SavingLockTypes = "collaboration" | "switchingScene" | "cloudSync";
 
 export class LocalData {
   private static _save = debounce(

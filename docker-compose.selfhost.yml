@@ -55,6 +55,17 @@
 #   VITE_APP_AI_BACKEND        Backend for AI features (text-to-diagram etc.).
 #                              Defaults to Excalidraw's public service.
 #
+#   VITE_APP_ENABLE_AUTH       "true" turns on Google sign-in and per-user
+#                              cloud storage. Defaults to false, and must stay
+#                              false unless VITE_APP_FIREBASE_CONFIG above
+#                              points at a Firebase project you control with
+#                              the Google provider enabled and this deployment's
+#                              domain listed under Authentication > Settings >
+#                              Authorized domains. Left unset, the config falls
+#                              back to upstream's project (.env.production), so
+#                              enabling auth without the override ships a
+#                              sign-in button that cannot work.
+#
 # In Coolify: create a "Docker Compose" resource pointing at this file, then
 # assign a domain to each of `excalidraw`, `excalidraw-room` and
 # `excalidraw-scenes`. All three listen on port 80, so no per-service port
@@ -100,6 +111,7 @@ services:
         - VITE_APP_BACKEND_V2_POST_URL=${VITE_APP_BACKEND_V2_POST_URL:?Set VITE_APP_BACKEND_V2_POST_URL to the excalidraw-scenes service, ending /api/v2/scenes with NO trailing slash}
         - VITE_APP_AI_BACKEND=${VITE_APP_AI_BACKEND:-https://oss-ai.excalidraw.com}
         - VITE_APP_ENABLE_TRACKING=${VITE_APP_ENABLE_TRACKING:-false}
+        - VITE_APP_ENABLE_AUTH=${VITE_APP_ENABLE_AUTH:-false}
     restart: unless-stopped
 
   excalidraw-room:
