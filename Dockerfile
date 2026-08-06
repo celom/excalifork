@@ -27,4 +27,11 @@ FROM nginx:stable-alpine-slim@sha256:2c605dbeab79a6b2a63340474fe58119d0ef95bdc4b
 
 COPY --from=build /opt/node_app/excalidraw-app/build /usr/share/nginx/html
 
+# Rendered into /etc/nginx/conf.d/ by the image's entrypoint, which substitutes
+# FIREBASE_AUTH_HOST and NGINX_LOCAL_RESOLVERS. The latter is only populated
+# when NGINX_ENTRYPOINT_LOCAL_RESOLVERS is set.
+COPY docker/nginx/default.conf.template /etc/nginx/templates/default.conf.template
+ENV NGINX_ENTRYPOINT_LOCAL_RESOLVERS=1
+ENV FIREBASE_AUTH_HOST=""
+
 HEALTHCHECK CMD wget -q -O /dev/null http://localhost || exit 1

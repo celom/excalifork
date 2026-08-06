@@ -1,0 +1,58 @@
+# nginx config for the app image. Rendered by the nginx entrypoint's envsubst
+# pass at container start, so FIREBASE_AUTH_HOST below is a runtime variable —
+# unlike the VITE_APP_* values, changing it needs a restart, not a rebuild.
+
+server {
+    listen       80;
+    listen  [::]:80;
+    server_name  localhost;
+
+    # Firebase opens the sign-in popup on the `authDomain` from
+    # VITE_APP_FIREBASE_CONFIG, and the popup's page — the OAuth handler — is
+    # served by Firebase, not by us. Leaving authDomain at
+    # <project-id>.firebaseapp.com puts that popup on a different origin than
+    # the app, which means the flow depends on third-party cookies (blocked by
+    # default in Safari, and being phased out elsewhere) and on the Firebase
+    # API key's HTTP-referrer allowlist covering firebaseapp.com as well as
+    # this deployment's own domain.
+    #
+    # Setting authDomain to this deployment's domain avoids both, but then the
+    # handler has to be reachable here: Firebase serves it under /__/auth/, so
+    # that prefix gets proxied through to the project's firebaseapp.com host.
+    #
+    # To enable, set FIREBASE_AUTH_HOST=<project-id>.firebaseapp.com on this
+    # container AND set authDomain in VITE_APP_FIREBASE_CONFIG to the domain
+    # the app is served from. Google Cloud console → APIs & Services →
+    # Credentials → the OAuth 2.0 web client also needs
+    # https://<your-domain>/__/auth/handler under "Authorized redirect URIs".
+    #
+    # Left unset (the default) the location 404s and nothing else changes.
+    location /__/auth/ {
+        resolver ${NGINX_LOCAL_RESOLVERS} ipv6=off valid=60s;
+
+        # kept in a variable so the upstream is resolved per request rather
+        # than at startup — otherwise an unset or unresolvable host would stop
+        # nginx from booting at all.
+        set $fb_auth_host "${FIREBASE_AUTH_HOST}";
+        if ($fb_auth_host = "") {
+            return 404;
+        }
+
+        proxy_pass https://$fb_auth_host$request_uri;
+        proxy_set_header Host $fb_auth_host;
+        proxy_ssl_server_name on;
+        proxy_ssl_name $fb_auth_host;
+        proxy_http_version 1.1;
+        proxy_redirect off;
+    }
+
+    location / {
+        root   /usr/share/nginx/html;
+        index  index.html index.htm;
+    }
+
+    error_page   500 502 503 504  /50x.html;
+    location = /50x.html {
+        root   /usr/share/nginx/html;
+    }
+}

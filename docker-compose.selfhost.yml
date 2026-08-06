@@ -66,6 +66,18 @@
 #                              enabling auth without the override ships a
 #                              sign-in button that cannot work.
 #
+#   FIREBASE_AUTH_HOST         "<project-id>.firebaseapp.com" makes the app
+#                              container proxy /__/auth/ through to Firebase,
+#                              so the sign-in popup can run on your own domain
+#                              instead of firebaseapp.com. Only useful together
+#                              with an authDomain in VITE_APP_FIREBASE_CONFIG
+#                              set to the domain this app is served from; see
+#                              docker/nginx/default.conf.template for the
+#                              matching Google Cloud console steps. Unlike the
+#                              VITE_APP_* values this one is read at container
+#                              start, so changing it needs a restart, not a
+#                              rebuild. Default: unset (no proxy).
+#
 # In Coolify: create a "Docker Compose" resource pointing at this file, then
 # assign a domain to each of `excalidraw`, `excalidraw-room` and
 # `excalidraw-scenes`. All three listen on port 80, so no per-service port
@@ -112,6 +124,9 @@ services:
         - VITE_APP_AI_BACKEND=${VITE_APP_AI_BACKEND:-https://oss-ai.excalidraw.com}
         - VITE_APP_ENABLE_TRACKING=${VITE_APP_ENABLE_TRACKING:-false}
         - VITE_APP_ENABLE_AUTH=${VITE_APP_ENABLE_AUTH:-false}
+    environment:
+      # Runtime, not build-time: nginx renders it at container start.
+      - FIREBASE_AUTH_HOST=${FIREBASE_AUTH_HOST:-}
     restart: unless-stopped
 
   excalidraw-room:
