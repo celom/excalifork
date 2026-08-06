@@ -38,7 +38,7 @@ import {
   DEFAULT_COLLECTION_ICON,
   getCollectionIcon,
 } from "./collectionIcons";
-import { FolderSyncControl } from "./FolderSyncControl";
+import { SceneDestinations } from "./SceneDestinations";
 import { useScenePreview } from "./useScenePreview";
 
 import "./ScenesTab.scss";
@@ -373,7 +373,7 @@ export const ScenesTab = () => {
           </div>
         </>
       )}
-      <FolderSyncControl />
+      <SceneDestinations />
       {iconPicker && (
         <Popover
           className="scenes-tab__icon-picker"

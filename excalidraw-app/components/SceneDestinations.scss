@@ -1,0 +1,215 @@
+.excalidraw {
+  .scene-destinations {
+    // destination hues: one per lane, so colour alone answers "which one is
+    // live". Cyan reads as the disk, violet is the editor's own primary.
+    --dest-folder: #0b7285;
+    --dest-account: var(--color-primary);
+    --dest-warning: #e8590c;
+    --dest-danger: var(--color-danger);
+    --dest-secondary: var(--color-gray-60);
+    // a band recessed from the sidebar behind it, with lane hover stepping one
+    // surface back toward the front
+    --dest-panel-bg: var(--color-surface-low);
+    --dest-lane-hover: var(--color-surface-lowest);
+
+    // pins to the bottom of the scenes tab (a flex column), and bleeds to both
+    // edges through that column's 0.75rem padding so it reads as a footer
+    // rather than a card floating in the list
+    margin: auto -0.75rem -0.75rem;
+    display: flex;
+    flex-direction: column;
+    padding: 0.5rem 0.75rem 0.625rem;
+    border-top: 1px solid var(--color-border-outline-variant);
+    background-color: var(--dest-panel-bg);
+    font-size: 0.75rem;
+    color: var(--dest-secondary);
+
+    &__eyebrow {
+      // matches the "Collections" section label above it
+      padding: 0 0.75rem 0.375rem;
+      font-size: 0.6875rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--dest-secondary);
+    }
+
+    &__hint {
+      padding: 0 0.75rem 0.375rem;
+      font-size: 0.6875rem;
+      line-height: 1.35;
+    }
+
+    &__lane {
+      position: relative;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      width: 100%;
+      // 0.75rem of left padding leaves the rail its own gutter
+      padding: 0.375rem 0.375rem 0.375rem 0.75rem;
+      border: none;
+      border-radius: var(--border-radius-md);
+      background: transparent;
+      color: inherit;
+      font-family: inherit;
+      font-size: inherit;
+      text-align: left;
+      cursor: pointer;
+      transition: background-color 0.15s ease;
+
+      &--folder {
+        --lane-hue: var(--dest-folder);
+      }
+      &--account {
+        --lane-hue: var(--dest-account);
+      }
+      &--warning {
+        --lane-hue: var(--dest-warning);
+      }
+      &--danger {
+        --lane-hue: var(--dest-danger);
+      }
+
+      // literal class names inside :not() — `&--lit` would expand to the whole
+      // parent selector, `.excalidraw` included
+      &:hover:not(.scene-destinations__lane--lit):not(.scene-destinations__lane--blocked) {
+        background-color: var(--dest-lane-hover);
+      }
+
+      &:focus-visible {
+        outline: 2px solid var(--focus-highlight-color);
+        outline-offset: -1px;
+      }
+
+      &--lit {
+        cursor: default;
+      }
+
+      &--blocked {
+        cursor: default;
+        opacity: 0.45;
+      }
+    }
+
+    // the signature: an unlit hairline that lights up in the destination's hue
+    // once that destination owns the scenes. Hovering an unlit lane previews
+    // the hue, so the rail reads as the commitment about to be made.
+    &__rail {
+      position: absolute;
+      left: 0.25rem;
+      top: 0.375rem;
+      bottom: 0.375rem;
+      width: 2px;
+      border-radius: 1px;
+      background-color: var(--color-border-outline-variant);
+      transform: scaleX(0.5);
+      transform-origin: left center;
+      transition: background-color 0.18s ease, transform 0.18s ease;
+    }
+
+    &__lane:hover:not(.scene-destinations__lane--blocked)
+      .scene-destinations__rail,
+    &__lane:focus-visible:not(.scene-destinations__lane--blocked)
+      .scene-destinations__rail,
+    &__lane--lit .scene-destinations__rail {
+      background-color: var(--lane-hue);
+      transform: scaleX(1);
+    }
+
+    &__icon {
+      display: flex;
+      flex: 0 0 auto;
+      color: var(--dest-secondary);
+
+      svg {
+        width: 1rem;
+        height: 1rem;
+      }
+    }
+
+    &__lane--lit .scene-destinations__icon {
+      color: var(--lane-hue);
+    }
+
+    &__avatar {
+      width: 1rem;
+      height: 1rem;
+      border-radius: 50%;
+      object-fit: cover;
+    }
+
+    &__text {
+      // min-width:0 is what actually lets the ellipsis engage inside the flex row
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+      min-width: 0;
+      gap: 0.0625rem;
+    }
+
+    &__name {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-size: 0.8125rem;
+      font-weight: 600;
+      color: var(--color-on-surface);
+    }
+
+    &__detail {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-size: 0.6875rem;
+    }
+
+    &__action {
+      flex: 0 0 auto;
+      padding: 0.25rem 0.5rem;
+      border: none;
+      border-radius: var(--border-radius-md);
+      background: transparent;
+      color: var(--dest-secondary);
+      font-family: inherit;
+      font-size: 0.6875rem;
+      cursor: pointer;
+      transition: background-color 0.12s ease, color 0.12s ease;
+
+      &:hover {
+        background-color: var(--dest-lane-hover);
+        color: var(--color-on-surface);
+      }
+
+      &:focus-visible {
+        outline: 2px solid var(--focus-highlight-color);
+        outline-offset: -1px;
+      }
+    }
+
+    &__error {
+      padding: 0.25rem 0.75rem 0;
+      color: var(--color-danger);
+      font-size: 0.6875rem;
+      line-height: 1.35;
+    }
+  }
+
+  &.theme--dark .scene-destinations {
+    // cyan-9 is unreadable on the dark sidebar; cyan-4 holds the same identity
+    --dest-folder: #66d9e8;
+    --dest-secondary: var(--color-gray-40);
+    // dark `surface-low` is the sidebar's own colour, so the band would vanish
+    // into it; `surface-mid` is the darker one in this theme
+    --dest-panel-bg: var(--color-surface-mid);
+    --dest-lane-hover: var(--color-surface-high);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .scene-destinations__lane,
+    .scene-destinations__rail,
+    .scene-destinations__action {
+      transition: none;
+    }
+  }
+}

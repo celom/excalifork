@@ -1,53 +1,7 @@
 .excalidraw {
+  // status dot for the export-dialog card (the sidebar's own status lives in
+  // SceneDestinations.scss, where the lane rail carries it instead)
   .folder-sync {
-    // pins to the bottom of the scenes tab (a flex column)
-    margin-top: auto;
-    padding-top: 0.5rem;
-    border-top: 1px solid var(--color-border-outline-variant);
-    font-size: 0.75rem;
-    color: var(--scenes-text-secondary, var(--color-gray-60));
-
-    &__action {
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-      width: 100%;
-      padding: 0.4375rem 0.625rem;
-      border: none;
-      border-radius: var(--border-radius-md);
-      background: transparent;
-      color: inherit;
-      font-size: inherit;
-      cursor: pointer;
-      transition: background-color 0.12s ease, color 0.12s ease;
-
-      svg {
-        width: 1rem;
-        height: 1rem;
-        flex: 0 0 auto;
-      }
-
-      &:hover {
-        background-color: var(--color-surface-mid);
-        color: var(--color-primary);
-      }
-    }
-
-    &__row {
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-      padding: 0.4375rem 0.625rem;
-    }
-
-    &__label {
-      flex: 1;
-      min-width: 0;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-
     &__dot {
       flex: 0 0 auto;
       width: 0.5rem;
@@ -62,23 +16,6 @@
       }
       &--error {
         background-color: var(--color-danger, #e03131);
-      }
-    }
-
-    &__stop {
-      flex: 0 0 auto;
-      padding: 0.25rem 0.5rem;
-      border: none;
-      border-radius: var(--border-radius-md);
-      background: transparent;
-      color: inherit;
-      font-size: inherit;
-      cursor: pointer;
-      transition: background-color 0.12s ease, color 0.12s ease;
-
-      &:hover {
-        background-color: var(--color-surface-mid);
-        color: var(--color-primary);
       }
     }
   }
