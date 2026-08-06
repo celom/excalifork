@@ -174,6 +174,13 @@ export default defineConfig(({ mode }) => {
             // loading. So we exclude it by name instead.
             "**/CodeMirrorEditor-*.js",
           ],
+          // `navigateFallback` defaults to index.html, so without this every
+          // same-origin navigation is answered from the precache — including
+          // the Firebase sign-in popup, which then renders the app instead of
+          // the OAuth handler. /__/ is Firebase's reserved namespace, proxied
+          // through to Firebase by nginx (docker/nginx/default.conf.template)
+          // when the deployment serves auth on its own domain.
+          navigateFallbackDenylist: [/^\/__\//],
           runtimeCaching: [
             {
               urlPattern: new RegExp(".+.woff2"),
