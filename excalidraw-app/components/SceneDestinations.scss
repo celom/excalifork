@@ -46,8 +46,12 @@
       align-items: center;
       gap: 0.5rem;
       width: 100%;
-      // 0.75rem of left padding leaves the rail its own gutter
-      padding: 0.375rem 0.375rem 0.375rem 0.75rem;
+      // not inherited here, and without it the padding pushes the lane past the
+      // panel's own padding — a trailing action then lands on the sidebar edge
+      box-sizing: border-box;
+      // 0.75rem of left padding leaves the rail its own gutter; the right side
+      // matches it so a trailing action isn't crowded against the sidebar edge
+      padding: 0.375rem 0.75rem 0.375rem 0.75rem;
       border: none;
       border-radius: var(--border-radius-md);
       background: transparent;
@@ -165,7 +169,11 @@
     }
 
     &__action {
+      // the negative margin cancels this button's own right padding, so the
+      // *label* lines up with the lane's content edge — same inset as the icon
+      // opposite it — while the hit area keeps its full width
       flex: 0 0 auto;
+      margin-right: -0.5rem;
       padding: 0.25rem 0.5rem;
       border: none;
       border-radius: var(--border-radius-md);
