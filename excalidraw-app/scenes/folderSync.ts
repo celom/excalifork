@@ -18,15 +18,15 @@
  * mirror; writes are idempotent (same content, same paths), so harmless.
  */
 
-import { debounce } from "@excalidraw/common";
 import { createStore, del, get, set } from "idb-keyval";
 
 import { appJotaiStore, atom } from "../app-jotai";
 
 import { getCollections } from "./collections";
 import { folderEntriesToArchive, scanFolderForScenes } from "./folderImport";
+import { createMirrorEngine } from "./mirrorEngine";
 import { buildScenePaths, serializeSceneToString } from "./serialize";
-import { getScenesIndex, scenesIndexAtom } from "./state";
+import { getScenesIndex } from "./state";
 
 import type { ParsedArchive } from "./import";
 import type { ScenePathPlan } from "./serialize";
@@ -193,9 +193,13 @@ export const syncScenesToFolder = async (opts: {
   persist: () => Promise<void> | void;
 }) => {
   const index = getScenesIndex();
-  const paths = buildScenePaths(index.scenes, getCollections(index));
-  const ops = computeSyncOps(opts.synced, index.scenes, paths);
-  const metaById = new Map(index.scenes.map((scene) => [scene.id, scene]));
+  // a scene whose payload lives elsewhere would serialize as an empty file.
+  // The UI keeps the two destinations mutually exclusive so this shouldn't
+  // arise, but that invariant lives in the sidebar, not here.
+  const scenes = index.scenes.filter((scene) => scene.materialized !== false);
+  const paths = buildScenePaths(scenes, getCollections(index));
+  const ops = computeSyncOps(opts.synced, scenes, paths);
+  const metaById = new Map(scenes.map((scene) => [scene.id, scene]));
 
   for (const op of ops.writes) {
     const meta = metaById.get(op.id)!;
@@ -222,9 +226,6 @@ export const syncScenesToFolder = async (opts: {
 // -----------------------------------------------------------------------------
 
 let record: FolderSyncRecord | null = null;
-let unsubscribeIndex: (() => void) | null = null;
-let running = false;
-let dirty = false;
 
 const setStatus = (status: FolderSyncStatus, error: string | null = null) => {
   appJotaiStore.set(folderSyncStatusAtom, status);
@@ -238,27 +239,24 @@ const persistRecord = async () => {
   }
 };
 
-const reconcile = async () => {
-  if (!record) {
-    return;
-  }
-  if (running) {
-    // an index change landed mid-pass — run again when it finishes
-    dirty = true;
-    return;
-  }
-  running = true;
-  try {
-    do {
-      dirty = false;
-      await syncScenesToFolder({
-        root: record.handle,
-        synced: record.synced,
-        persist: persistRecord,
-      });
-    } while (dirty);
-    setStatus("active");
-  } catch (error: any) {
+const engine = createMirrorEngine({
+  debounceTimeout: FOLDER_SYNC_DEBOUNCE_TIMEOUT,
+  pass: async () => {
+    if (!record) {
+      return;
+    }
+    await syncScenesToFolder({
+      root: record.handle,
+      synced: record.synced,
+      persist: persistRecord,
+    });
+  },
+  onSettled: () => {
+    if (record) {
+      setStatus("active");
+    }
+  },
+  onError: (error: any) => {
     console.error(error);
     if (error?.name === "NotAllowedError" || error?.name === "SecurityError") {
       setStatus("needs-permission");
@@ -270,28 +268,8 @@ const reconcile = async () => {
     } else {
       setStatus("error", error?.message || "Folder sync failed.");
     }
-  } finally {
-    running = false;
-  }
-};
-
-const scheduleReconcile = debounce(() => {
-  reconcile();
-}, FOLDER_SYNC_DEBOUNCE_TIMEOUT);
-
-const subscribeToIndex = () => {
-  if (!unsubscribeIndex) {
-    unsubscribeIndex = appJotaiStore.sub(scenesIndexAtom, () => {
-      scheduleReconcile();
-    });
-  }
-};
-
-const stopEngine = () => {
-  scheduleReconcile.cancel();
-  unsubscribeIndex?.();
-  unsubscribeIndex = null;
-};
+  },
+});
 
 // -----------------------------------------------------------------------------
 // public API
@@ -319,9 +297,9 @@ export const initFolderSync = async () => {
       record.handle as HandleWithPermissions
     ).queryPermission({ mode: "readwrite" });
     if (permission === "granted") {
-      subscribeToIndex();
+      engine.start();
       setStatus("active");
-      await reconcile();
+      await engine.reconcile();
     } else {
       // requestPermission needs a user gesture — the UI offers a resume
       // button
@@ -343,12 +321,12 @@ export const initFolderSync = async () => {
  * behind as an unmanaged leftover.
  */
 export const activateFolderSync = async (handle: FileSystemDirectoryHandle) => {
-  stopEngine();
+  engine.stop();
   record = { version: 1, handle, synced: {} };
   await persistRecord();
-  subscribeToIndex();
+  engine.start();
   setStatus("active");
-  await reconcile();
+  await engine.reconcile();
 };
 
 /**
@@ -407,14 +385,14 @@ export const reenableFolderSync = async () => {
     setStatus("error", error?.message || "Couldn't re-enable folder sync.");
     return;
   }
-  subscribeToIndex();
+  engine.start();
   setStatus("active");
-  await reconcile();
+  await engine.reconcile();
 };
 
 /** stops mirroring; files already written stay on disk */
 export const disableFolderSync = async () => {
-  stopEngine();
+  engine.stop();
   record = null;
   setStatus("off");
   try {

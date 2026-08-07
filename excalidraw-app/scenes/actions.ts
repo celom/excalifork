@@ -25,6 +25,7 @@ import { isCollaboratingAtom } from "../collab/Collab";
 import { updateStaleImageStatuses } from "../data/FileManager";
 import { LocalData } from "../data/LocalData";
 
+import { materializeScene } from "./materialize";
 import { getScenesIndex, setScenesIndex } from "./state";
 import { scenesStorage, newSceneId } from "./storage";
 
@@ -87,12 +88,14 @@ export const applyStoredScene = async (
   const meta = index.scenes.find((scene) => scene.id === id);
 
   // A scene whose metadata exists but whose payload does not (only a cloud
-  // pull produces this) must NOT be rendered — below, missing keys are read
-  // as an empty scene, which is correct for a never-yet-saved scene and
-  // catastrophic for an undownloaded one: the autosave would persist the
-  // emptiness and it would replicate over the real data. Bail without
-  // touching the editor; the caller keeps showing the previous scene.
-  if (meta?.materialized === false) {
+  // pull produces this) must NOT be rendered until the payload is here —
+  // below, missing keys are read as an empty scene, which is correct for a
+  // never-yet-saved scene and catastrophic for an undownloaded one: the
+  // autosave would persist the emptiness and it would replicate over the
+  // real data. Fetch it first, and if that can't happen (signed out, or the
+  // download failed) bail without touching the editor; the caller keeps
+  // showing the previous scene.
+  if (meta?.materialized === false && !(await materializeScene(id))) {
     console.warn(`scene ${id} is not materialized locally — not applying`);
     return false;
   }

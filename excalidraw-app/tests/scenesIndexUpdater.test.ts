@@ -8,6 +8,7 @@ import type { ExcalidrawImperativeAPI } from "@excalidraw/excalidraw/types";
 
 import { STORAGE_KEYS } from "../app_constants";
 import { applyStoredScene } from "../scenes/actions";
+import { setSceneMaterializer } from "../scenes/materialize";
 import { searchScenes } from "../scenes/search";
 import { getScenesIndex, setScenesIndex } from "../scenes/state";
 import { saveSceneSync } from "../scenes/storage";
@@ -91,6 +92,8 @@ describe("setScenesIndex updater form", () => {
 });
 
 describe("applyStoredScene materialized guard", () => {
+  afterEach(() => setSceneMaterializer(null));
+
   const fakeAPI = () => {
     const api = {
       resetScene: vi.fn(),
@@ -118,6 +121,42 @@ describe("applyStoredScene materialized guard", () => {
     // must not reach resetScene, or the autosave persists the emptiness
     expect(api.resetScene).not.toHaveBeenCalled();
     expect(api.updateScene).not.toHaveBeenCalled();
+  });
+
+  it("fetches the payload first when something can supply it", async () => {
+    setScenesIndex((prev) => ({
+      ...prev,
+      scenes: prev.scenes.map((scene) =>
+        scene.id === "s2" ? { ...scene, materialized: false } : scene,
+      ),
+    }));
+    // stands in for cloud sync's downloader, which registers itself here
+    const materializer = vi.fn(async (id: string) => {
+      saveSceneSync(id, { elements: [], appState: {} });
+      return true;
+    });
+    setSceneMaterializer(materializer);
+
+    const api = fakeAPI();
+    const applied = await applyStoredScene("s2", api);
+
+    expect(materializer).toHaveBeenCalledWith("s2");
+    expect(applied).toBe(true);
+    expect(api.updateScene).toHaveBeenCalled();
+  });
+
+  it("still refuses when the fetch fails", async () => {
+    setScenesIndex((prev) => ({
+      ...prev,
+      scenes: prev.scenes.map((scene) =>
+        scene.id === "s2" ? { ...scene, materialized: false } : scene,
+      ),
+    }));
+    setSceneMaterializer(async () => false);
+
+    const api = fakeAPI();
+    expect(await applyStoredScene("s2", api)).toBe(false);
+    expect(api.resetScene).not.toHaveBeenCalled();
   });
 
   it("renders a scene with no blob normally when it is materialized", async () => {

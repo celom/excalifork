@@ -17,9 +17,16 @@ describe("setCollectionIcon", () => {
 
   it("sets the icon on the target collection", () => {
     setCollectionIcon("c1", "brain");
-    expect(getScenesIndex().collections).toEqual([
+    expect(getScenesIndex().collections).toMatchObject([
       { id: "c1", name: "Ideas", createdAt: 1, icon: "brain" },
     ]);
+  });
+
+  it("stamps updatedAt, which cloud sync merges collections on", () => {
+    // without it the change is invisible to `mergeCloudIndex`, and an older
+    // copy of the collection on another device would keep winning
+    setCollectionIcon("c1", "brain");
+    expect(getScenesIndex().collections?.[0].updatedAt).toBeGreaterThan(1);
   });
 
   it("clears the icon with null", () => {

@@ -12,6 +12,11 @@ import {
   signOutUser,
 } from "../data/auth";
 import {
+  cloudSyncErrorAtom,
+  cloudSyncPendingAtom,
+  cloudSyncStatusAtom,
+} from "../scenes/cloudSync";
+import {
   disableFolderSync,
   enableFolderSync,
   folderSyncErrorAtom,
@@ -162,6 +167,10 @@ export const SceneDestinations = () => {
   const folderError = useAtomValue(folderSyncErrorAtom);
   const folderName = useAtomValue(folderSyncFolderNameAtom);
 
+  const cloudStatus = useAtomValue(cloudSyncStatusAtom);
+  const cloudError = useAtomValue(cloudSyncErrorAtom);
+  const cloudPending = useAtomValue(cloudSyncPendingAtom);
+
   const scenesIndex = useAtomValue(scenesIndexAtom);
   const [isConfirmingStop, setIsConfirmingStop] = useState(false);
 
@@ -279,12 +288,29 @@ export const SceneDestinations = () => {
     );
   };
 
+  // what the lit account lane says about the sync itself. The email is one
+  // tap away in the tooltip; the line the user needs on sight is whether
+  // their scenes are actually somewhere else yet.
+  const accountDetail = () => {
+    if (cloudStatus === "error") {
+      return cloudError ?? "Sync failed.";
+    }
+    if (cloudStatus === "syncing") {
+      return "Syncing…";
+    }
+    if (cloudPending > 0) {
+      return `Synced — ${cloudPending} to download`;
+    }
+    return "Saving every change";
+  };
+
   const accountLane = () => {
     if (isAccountLit && user) {
       const name = user.displayName || user.email || "Signed in";
+      const detail = accountDetail();
       return (
         <Lane
-          tone="account"
+          tone={cloudStatus === "error" ? "danger" : "account"}
           isLit
           icon={
             user.photoURL ? (
@@ -299,9 +325,15 @@ export const SceneDestinations = () => {
             )
           }
           name={name}
-          detail={user.displayName ? user.email ?? "Signed in" : "Signed in"}
-          detailTitle={user.email ?? undefined}
-          title={user.email ?? "Signed in"}
+          detail={detail}
+          detailTitle={cloudError ?? user.email ?? undefined}
+          title={
+            cloudPending > 0
+              ? `${cloudPending} scene${
+                  cloudPending === 1 ? "" : "s"
+                } from this account will download when you open them`
+              : cloudError ?? user.email ?? "Signed in"
+          }
           action={
             <button
               type="button"

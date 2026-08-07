@@ -41,6 +41,13 @@ export type CollectionMeta = {
   createdAt: number;
   /** key into COLLECTION_ICONS — missing/unknown renders the default folder */
   icon?: string;
+  /**
+   * Last mutation, for cloud sync's last-write-wins merge. Absent on
+   * collections written before this field existed, where `createdAt` stands in
+   * — correct for a collection that was never renamed, which is the only way
+   * to be missing it.
+   */
+  updatedAt?: number;
 };
 
 export type SceneMeta = {
@@ -141,6 +148,20 @@ export const saveIndexSync = (index: ScenesIndex) => {
     STORAGE_KEYS.LOCAL_STORAGE_SCENES_INDEX,
     JSON.stringify(index),
   );
+};
+
+/**
+ * Whether the scene's payload is actually written here — without parsing it.
+ * Cloud sync asks this for every scene on every pass, to tell a scene it has
+ * yet to upload from one whose blob lives on another device.
+ */
+export const hasSceneBlobSync = (id: SceneId): boolean => {
+  try {
+    return localStorage.getItem(sceneElementsKey(id)) != null;
+  } catch (error: any) {
+    console.error(error);
+    return false;
+  }
 };
 
 export const loadSceneSync = (id: SceneId): SceneData | null => {
