@@ -171,6 +171,18 @@ export type CloudMergePlan = {
   remote: RemoteIndex | null;
   /** ids to forget from the record (deleted on either side) */
   forget: SceneId[];
+  /**
+   * collection id → `updatedAt` the account holds once this plan is applied.
+   *
+   * Collections carry no payload, so nothing in the pass writes them to the
+   * record the way `pushScene` writes scenes. Without this the record's
+   * `collections` map stays empty, `decideMerge` never sees a `synced` value
+   * for one, and a collection deleted here reads as one we have simply never
+   * pulled — `add-remote`, every pass, forever. This is the whole published
+   * set rather than a delta so the record can be replaced outright, which
+   * also keeps it from accumulating ids the account no longer has.
+   */
+  publishedCollections: Record<CollectionId, number>;
 };
 
 /** stable comparison of everything except the write clock */
@@ -331,6 +343,11 @@ export const mergeCloudIndex = ({
     updatedAt: now,
   };
 
+  const publishedCollections: Record<CollectionId, number> = {};
+  for (const collection of collections) {
+    publishedCollections[collection.id] = collectionUpdatedAt(collection);
+  }
+
   return {
     scenes,
     collections,
@@ -339,6 +356,7 @@ export const mergeCloudIndex = ({
     removals,
     remoteRemovals,
     forget,
+    publishedCollections,
     remote:
       remote && remoteContentEquals(remote, nextRemote) ? null : nextRemote,
   };

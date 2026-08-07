@@ -378,6 +378,10 @@ const pass = async () => {
     for (const id of plan.forget) {
       delete record.scenes[id];
     }
+    // only once the account is known to hold this set — either the write
+    // above committed, or it was skipped because remote already said so.
+    // Recording it before that would claim we published something we didn't.
+    record.collections = plan.publishedCollections;
     await persistRecord();
     if (openSceneDisturbed) {
       await reapplyActiveScene();

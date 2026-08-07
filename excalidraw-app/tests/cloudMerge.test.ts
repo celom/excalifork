@@ -49,7 +49,12 @@ const remoteIndex = (
 
 const recordWith = (
   scenes: CloudSyncRecord["scenes"] = {},
-): CloudSyncRecord => ({ ...emptyCloudSyncRecord("uid"), scenes });
+  collections: CloudSyncRecord["collections"] = {},
+): CloudSyncRecord => ({
+  ...emptyCloudSyncRecord("uid"),
+  scenes,
+  collections,
+});
 
 const merge = (opts: {
   local: ScenesIndex;
@@ -357,5 +362,81 @@ describe("collections", () => {
     });
 
     expect(plan.collections.map((c) => c.id)).toEqual(["a", "b"]);
+  });
+
+  it("tombstones a collection this device deleted", () => {
+    const plan = merge({
+      local: { ...localIndex([scene("s", 10)]), collections: [] },
+      remote: {
+        ...remoteIndex([scene("s", 10)]),
+        collections: [collection("c", "deleted here", 20)],
+      },
+      record: recordWith(
+        { s: { updatedAt: 10, contentVersion: 10 } },
+        { c: 20 },
+      ),
+    });
+
+    expect(plan.collections).toEqual([]);
+    expect(plan.remote?.deleted.c).toBe(NOW);
+  });
+
+  it("does not resurrect a collection deleted on another device", () => {
+    const plan = merge({
+      local: {
+        ...localIndex([scene("s", 10)]),
+        collections: [collection("c", "deleted elsewhere", 20)],
+      },
+      remote: {
+        ...remoteIndex([scene("s", 10)], { c: 30 }),
+        collections: [],
+      },
+      record: recordWith(
+        { s: { updatedAt: 10, contentVersion: 10 } },
+        { c: 20 },
+      ),
+    });
+
+    expect(plan.collections).toEqual([]);
+  });
+
+  it("publishes a record of collections, so a later delete is not read as a collection never pulled", () => {
+    const first = merge({
+      local: {
+        ...localIndex([scene("s", 10)]),
+        collections: [collection("c", "mine", 20)],
+      },
+    });
+
+    expect(first.publishedCollections).toEqual({ c: 20 });
+
+    // the pass writes that back to the record. Deleting the collection here
+    // must now tombstone it rather than pull it straight back in — which is
+    // exactly what an empty `collections` record used to do, on every pass.
+    const second = merge({
+      local: { ...localIndex([scene("s", 10)]), collections: [] },
+      remote: {
+        ...remoteIndex([scene("s", 10)]),
+        collections: [collection("c", "mine", 20)],
+      },
+      record: recordWith(
+        { s: { updatedAt: 10, contentVersion: 10 } },
+        first.publishedCollections,
+      ),
+    });
+
+    expect(second.collections).toEqual([]);
+    expect(second.remote?.deleted.c).toBe(NOW);
+  });
+
+  it("records the createdAt fallback for collections written before updatedAt", () => {
+    const plan = merge({
+      local: {
+        ...localIndex([scene("s", 10)]),
+        collections: [collection("c", "legacy")],
+      },
+    });
+
+    expect(plan.publishedCollections).toEqual({ c: 1 });
   });
 });

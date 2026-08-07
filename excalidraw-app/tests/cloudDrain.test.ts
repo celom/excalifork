@@ -58,6 +58,7 @@ vi.mock("../data/cloudStorage", () => ({
 }));
 
 const cloudStorage = await import("../data/cloudStorage");
+const idb = await import("idb-keyval");
 const { authUserAtom } = await import("../data/auth");
 
 /** the subset of `AuthUser` the sync engine reads — only `uid` is load-bearing */
@@ -243,5 +244,26 @@ describe("payload drain", () => {
         .filter((scene) => scene.id !== "local")
         .every((scene) => scene.materialized === true),
     ).toBe(true);
+  });
+
+  /**
+   * Collections have no payload, so nothing in the pass writes them to the
+   * record the way `pushScene` writes scenes. That left the map permanently
+   * empty, and an empty map makes a collection deleted here indistinguishable
+   * from one this device has never pulled — so every pass added it straight
+   * back and collections could not be deleted at all.
+   */
+  it("records the collections it published, not only the scenes", async () => {
+    const collection = { id: "c", name: "Work", createdAt: 5, updatedAt: 5 };
+    setScenesIndex({ ...localIndex(), collections: [collection] });
+    vi.mocked(cloudStorage.loadRemoteIndex).mockResolvedValue({
+      ...remoteIndex(),
+      collections: [collection],
+    });
+
+    await runSync();
+
+    const persisted = vi.mocked(idb.set).mock.calls.at(-1)?.[1] as any;
+    expect(persisted?.collections).toEqual({ c: 5 });
   });
 });
