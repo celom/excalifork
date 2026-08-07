@@ -14,14 +14,20 @@
  * `onSnapshot`, so a second device shows up within a second or two rather
  * than at the next local edit.
  *
- * **Payloads are pulled lazily.** The pass syncs metadata for every scene but
- * downloads a blob only when the scene is opened. Eager download would be
- * simpler, but the local store is localStorage with its ~5MB ceiling, and an
- * account can hold far more than one browser can — so a scene arrives as
- * metadata with `materialized: false` and `applyStoredScene` fetches it on
- * demand (via the `materialize.ts` registration point). That flag already
- * existed for exactly this; the guards on it are what stop an undownloaded
- * scene from being read as an empty one and replicated over the real data.
+ * **Payloads arrive after their metadata.** A pass syncs metadata for every
+ * scene, then downloads the blobs of any that this device doesn't hold yet
+ * (`drainPendingScenes`). Until a blob lands its scene sits in the index as
+ * `materialized: false`, and the guards on that flag are what stop an
+ * undownloaded scene from being read as an empty one and replicated over the
+ * real data. Opening a scene the drain hasn't reached yet fetches it on the
+ * spot, via the `materialize.ts` registration point.
+ *
+ * Downloading everything is a deliberate choice with a known limit: the local
+ * store is localStorage with its ~5MB ceiling, and an account can hold far
+ * more than one browser can. The drain is therefore sequential and stops at
+ * the first quota failure rather than churning through the rest of the list —
+ * scenes it couldn't fetch stay `materialized: false`, still open on demand,
+ * and are retried on the next pass.
  *
  * Ordering inside a pass is deliberate: payloads are written before the
  * metadata that points at them, and the local half of the merge is applied
@@ -50,7 +56,11 @@ import {
   uploadFile,
   uploadSceneBlob,
 } from "../data/cloudStorage";
-import { LocalData } from "../data/LocalData";
+import {
+  LocalData,
+  isQuotaExceededError,
+  localStorageQuotaExceededAtom,
+} from "../data/LocalData";
 
 import { applyStoredScene } from "./actions";
 import { emptyCloudSyncRecord, mergeCloudIndex } from "./cloudMerge";
@@ -80,6 +90,9 @@ export const cloudSyncStatusAtom = atom<CloudSyncStatus>("off");
 export const cloudSyncErrorAtom = atom<string | null>(null);
 /** scenes listed in the workspace whose payload is not on this device yet */
 export const cloudSyncPendingAtom = atom(0);
+/** whether the drain is actively fetching those payloads right now. Split
+ * from the count so the UI can tell "arriving" from "stopped with N left" */
+export const cloudSyncDownloadingAtom = atom(false);
 
 const CLOUD_SYNC_DEBOUNCE_TIMEOUT = 2000;
 /** a lost write race is a retry, not a failure; give up only if it persists */
@@ -92,6 +105,12 @@ let record: CloudSyncRecord | null = null;
 let startingUid: string | null = null;
 let unsubscribeRemote: (() => void) | null = null;
 let editorAPI: ExcalidrawImperativeAPI | null = null;
+/** downloads in progress, keyed by scene — so a user opening a scene the
+ * drain is already fetching joins that download instead of starting a second */
+const inFlightDownloads = new Map<SceneId, Promise<boolean>>();
+/** set when a payload write hits the localStorage ceiling. Reset at the top of
+ * every pass: by then the user may have deleted a scene and freed room. */
+let quotaStopped = false;
 
 // -----------------------------------------------------------------------------
 // status
@@ -302,6 +321,10 @@ const pass = async () => {
   // out from under the editor
   let openSceneDisturbed = false;
 
+  // a pass is the retry point for a drain the storage ceiling cut short —
+  // the user may have deleted a scene since, which is what frees the room
+  quotaStopped = false;
+
   for (let attempt = 0; attempt < MAX_WRITE_ATTEMPTS; attempt++) {
     const remote = await loadRemoteIndex(uid);
     const local = getScenesIndex();
@@ -359,6 +382,10 @@ const pass = async () => {
     if (openSceneDisturbed) {
       await reapplyActiveScene();
     }
+    // last, and inside the pass: the index is settled, and running here
+    // rather than concurrently keeps `applyPlanLocally` from reverting the
+    // flags the drain sets
+    await drainPendingScenes(uid);
     return;
   }
 
@@ -382,50 +409,137 @@ const engine = createMirrorEngine({
 });
 
 // -----------------------------------------------------------------------------
-// lazy payload fetch
+// payload download
 // -----------------------------------------------------------------------------
 
+/** a full local store fails every remaining download the same way, so stop the
+ * drain rather than churn through the rest of the list */
+const noteDownloadFailure = (error: any) => {
+  if (isQuotaExceededError(error)) {
+    quotaStopped = true;
+    appJotaiStore.set(localStorageQuotaExceededAtom, true);
+  }
+};
+
+/** Downloads one scene's payload and marks it local. Throws — callers decide
+ * whether one failure is worth surfacing or just skipping. */
+const fetchScenePayload = async (
+  uid: string,
+  id: SceneId,
+): Promise<boolean> => {
+  const meta = getScenesIndex().scenes.find((scene) => scene.id === id);
+  if (!meta) {
+    return false;
+  }
+
+  const data = await downloadSceneBlob(uid, id);
+  // no blob ≡ an empty scene: one created on another device and synced
+  // before anything was drawn on it
+  const elements = data?.elements ?? [];
+  // images before the flag flips, so the scene never renders with holes
+  await pullSceneFiles(uid, elements);
+
+  try {
+    saveSceneSync(id, { elements, appState: data?.appState ?? {} });
+  } catch (error: any) {
+    // the elements key is written first and is the big one, so a quota
+    // failure tends to leave it behind holding the very space that made the
+    // write fail. Drop both — the scene stays `materialized: false`, which
+    // every read path already guards on.
+    deleteSceneSync(id);
+    throw error;
+  }
+
+  // a sign-out can land in either await above
+  if (record?.uid !== uid) {
+    deleteSceneSync(id);
+    return false;
+  }
+  record.scenes[id] = {
+    updatedAt: meta.updatedAt,
+    contentVersion: meta.contentVersion,
+  };
+  engine.mute(() =>
+    setScenesIndex((prev) => ({
+      ...prev,
+      scenes: prev.scenes.map((scene) =>
+        scene.id === id ? { ...scene, materialized: true } : scene,
+      ),
+    })),
+  );
+  await persistRecord();
+  updatePendingCount();
+  return true;
+};
+
+/** de-duplicated by scene id: the drain and a user opening that same scene
+ * must not both download it */
+const downloadScene = (uid: string, id: SceneId): Promise<boolean> => {
+  const running = inFlightDownloads.get(id);
+  if (running) {
+    return running;
+  }
+  const download = fetchScenePayload(uid, id).finally(() => {
+    inFlightDownloads.delete(id);
+  });
+  inFlightDownloads.set(id, download);
+  return download;
+};
+
 /**
- * Downloads one scene's payload and marks it local. Registered as the
- * materializer, so `applyStoredScene` calls this instead of refusing to open
- * a scene it doesn't hold.
+ * Fetches every scene whose payload is still only in the account.
+ *
+ * Runs at the end of a pass rather than alongside one: `applyPlanLocally`
+ * rewrites the whole scene list from a plan computed at the top of the pass,
+ * so a `materialized: true` written while that was in flight would be
+ * reverted by it. Sequential, so the storage ceiling is met by one scene
+ * rather than by all of them at once.
+ */
+const drainPendingScenes = async (uid: string) => {
+  const pending = getScenesIndex()
+    .scenes.filter((scene) => scene.materialized === false)
+    .map((scene) => scene.id);
+  if (!pending.length) {
+    return;
+  }
+
+  appJotaiStore.set(cloudSyncDownloadingAtom, true);
+  setStatus("syncing");
+  try {
+    for (const id of pending) {
+      // a sign-out or a full store ends the drain; the rest stay openable on
+      // demand and are retried by the next pass
+      if (record?.uid !== uid || quotaStopped) {
+        return;
+      }
+      try {
+        await downloadScene(uid, id);
+      } catch (error: any) {
+        console.error(error);
+        noteDownloadFailure(error);
+        // one unreadable scene must not strand the others
+      }
+    }
+  } finally {
+    appJotaiStore.set(cloudSyncDownloadingAtom, false);
+  }
+};
+
+/**
+ * Registered as the materializer, so `applyStoredScene` calls this instead of
+ * refusing to open a scene it doesn't hold — the drain may not have reached
+ * it yet, or may have stopped before it.
  */
 const materializeSceneFromCloud = async (id: SceneId): Promise<boolean> => {
   const uid = getCurrentUid();
   if (!uid || record?.uid !== uid) {
     return false;
   }
-  const meta = getScenesIndex().scenes.find((scene) => scene.id === id);
-  if (!meta) {
-    return false;
-  }
-
   try {
-    const data = await downloadSceneBlob(uid, id);
-    // no blob ≡ an empty scene: one created on another device and synced
-    // before anything was drawn on it
-    const elements = data?.elements ?? [];
-    // images before the flag flips, so the scene never renders with holes
-    await pullSceneFiles(uid, elements);
-    saveSceneSync(id, { elements, appState: data?.appState ?? {} });
-
-    record.scenes[id] = {
-      updatedAt: meta.updatedAt,
-      contentVersion: meta.contentVersion,
-    };
-    engine.mute(() =>
-      setScenesIndex((prev) => ({
-        ...prev,
-        scenes: prev.scenes.map((scene) =>
-          scene.id === id ? { ...scene, materialized: true } : scene,
-        ),
-      })),
-    );
-    await persistRecord();
-    updatePendingCount();
-    return true;
+    return await downloadScene(uid, id);
   } catch (error: any) {
     console.error(error);
+    noteDownloadFailure(error);
     setStatus("error", describeError(error));
     return false;
   }
@@ -486,11 +600,23 @@ const stop = () => {
   unsubscribeRemote = null;
   record = null;
   startingUid = null;
+  // clearing `record` above is what makes the in-flight downloads bail; this
+  // just stops a later sign-in from joining one of them
+  inFlightDownloads.clear();
+  quotaStopped = false;
   setStatus("off");
+  appJotaiStore.set(cloudSyncDownloadingAtom, false);
 
   const index = getScenesIndex();
   const kept = index.scenes.filter((scene) => scene.materialized !== false);
   if (kept.length !== index.scenes.length) {
+    // a download that landed between the sign-out and this line would leave
+    // keys behind for a scene about to drop out of the index
+    for (const scene of index.scenes) {
+      if (scene.materialized === false) {
+        deleteSceneSync(scene.id);
+      }
+    }
     const now = Date.now();
     // signing out on a device that only ever held pulled scenes would
     // otherwise leave an index with no scenes at all, which won't load back
