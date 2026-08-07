@@ -113,6 +113,7 @@ import {
 import { updateStaleImageStatuses } from "./data/FileManager";
 import { FileStatusStore } from "./data/fileStatusStore";
 import { applyStoredScene, importSceneFromData } from "./scenes/actions";
+import { initCloudSync, setCloudSyncEditor } from "./scenes/cloudSync";
 import { initFolderSync, isFolderSyncSupported } from "./scenes/folderSync";
 import {
   getActiveSceneId,
@@ -400,8 +401,25 @@ const ExcalidrawWrapper = () => {
 
   // attaches the Firebase auth listener (no-op unless VITE_APP_ENABLE_AUTH is
   // set). Lives here rather than in the account menu because the menu unmounts
-  // when closed, and later phases need the session app-wide.
+  // when closed, and the session is needed app-wide.
   useEffect(() => initAuth(), []);
+
+  // starts and stops per-user cloud sync with the session (no-op when auth
+  // isn't available). Separate from the listener above so a signed-out build
+  // never reaches the Firestore/Storage code at all.
+  useEffect(() => {
+    if (isTestEnv()) {
+      return;
+    }
+    return initCloudSync();
+  }, []);
+
+  // lets cloud sync re-render the open scene when another device's edit to it
+  // wins the merge
+  useEffect(() => {
+    setCloudSyncEditor(excalidrawAPI);
+    return () => setCloudSyncEditor(null);
+  }, [excalidrawAPI]);
 
   // initial state
   // ---------------------------------------------------------------------------

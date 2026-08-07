@@ -22,6 +22,29 @@ To turn it on:
 
 The org policies that blocked Cloud Functions (below) do **not** apply here. They constrain IAM principals; Firebase Auth end users are not IAM principals, and sign-in authorizes through the web API key and security rules — the same path Firestore and Storage already use in this project. The one consequence that does carry over: `constraints/iam.disableServiceAccountKeyCreation` means no Admin SDK key exists anywhere, so nothing server-side can mint or verify tokens. Everything is client SDK plus rules.
 
+### Where a signed-in user's scenes live
+
+```
+Firestore  users/{uid}/workspace/index    the scenes index — metadata only
+Storage    users/{uid}/scenes/{sceneId}   one gzipped scene payload per scene
+Storage    users/{uid}/files/{fileId}     image files, content-addressed
+```
+
+Metadata and payloads are split because Firestore documents cap at 1 MiB and scenes have no such bound, and because the index is what every device reads on every sync pass — keeping payloads out of it makes that read cheap and makes an `onSnapshot` listener a viable live-update channel between devices.
+
+`excalidraw-app/scenes/cloudSync.ts` drives it; the merge rules it runs on are in `cloudMerge.ts`, kept pure and directly tested because they are the part that can lose a drawing. The short version: per-scene last-write-wins on `updatedAt`, deletions carried as tombstones so a delete on one device isn't undone by the next push from another, and payloads pulled lazily when a scene is opened rather than eagerly — an account can hold far more than one browser's localStorage.
+
+No bucket CORS configuration is needed, despite what most Cloud Storage advice says. `gsutil cors set` governs `storage.googleapis.com`, the direct GCS API. The JS SDK doesn't use that host — `getBytes`, `uploadBytes` and `deleteObject` all go to `firebasestorage.googleapis.com/v0/...`, the Firebase-managed endpoint, which answers preflight from any origin with `access-control-allow-origin: *` and allows the headers the SDK sends (`Authorization`, `Range`, `Content-Type`). Verify with:
+
+```bash
+curl -sD - -o /dev/null -X OPTIONS \
+  "https://firebasestorage.googleapis.com/v0/b/excalifork-40f48.firebasestorage.app/o/probe?alt=media" \
+  -H "Origin: https://example.com" -H "Access-Control-Request-Method: GET" \
+  -H "Access-Control-Request-Headers: authorization,range" | grep -i access-control
+```
+
+This would stop being true if scenes were ever fetched by raw URL against `storage.googleapis.com` instead of through the SDK.
+
 ### Per-user storage is not end-to-end encrypted
 
 Collab rooms and share links are encrypted in the browser because their keys ride in the URL fragment. That does not transfer to a user account: Google sign-in yields no password to derive a key from, there is no server component to escrow one, and no Admin SDK key is available. Real E2E would require a user-held passphrase and a recovery story — a separate product.

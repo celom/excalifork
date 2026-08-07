@@ -47,10 +47,12 @@ const nextCollectionName = (index: ScenesIndex) => {
 /** returns the new meta so the caller can start an inline rename */
 export const createCollection = (): CollectionMeta => {
   const index = getScenesIndex();
+  const now = Date.now();
   const meta: CollectionMeta = {
     id: newSceneId(),
     name: nextCollectionName(index),
-    createdAt: Date.now(),
+    createdAt: now,
+    updatedAt: now,
   };
   setScenesIndex({
     ...index,
@@ -68,7 +70,7 @@ export const renameCollection = (id: CollectionId, name: string) => {
   setScenesIndex({
     ...index,
     collections: getCollections(index).map((c) =>
-      c.id === id ? { ...c, name: trimmedName } : c,
+      c.id === id ? { ...c, name: trimmedName, updatedAt: Date.now() } : c,
     ),
   });
 };
@@ -82,7 +84,9 @@ export const setCollectionIcon = (id: CollectionId, icon: string | null) => {
   setScenesIndex({
     ...index,
     collections: getCollections(index).map((c) =>
-      c.id === id ? { ...c, icon: icon ?? undefined } : c,
+      c.id === id
+        ? { ...c, icon: icon ?? undefined, updatedAt: Date.now() }
+        : c,
     ),
   });
 };
