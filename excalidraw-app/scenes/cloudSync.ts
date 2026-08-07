@@ -588,6 +588,36 @@ const start = async (uid: string) => {
 };
 
 /**
+ * Drops ids from this device's pushed-record without disturbing the rest.
+ *
+ * Dropping an unmaterialized scene from the local index has to be paired with
+ * this. The record is what tells the next merge "we pushed this id and no
+ * longer hold it locally", which {@link decideMerge} reads as a delete made
+ * here and answers with `tombstone` — deleting from the *account* a scene
+ * whose only failing was that its payload never finished downloading. With
+ * the id forgotten the same pass sees a scene it has never pushed and answers
+ * `add-remote`, pulling it back, which is what "they come back on the next
+ * sign-in" below has always claimed.
+ */
+const forgetPushedScenes = async (uid: string, ids: readonly SceneId[]) => {
+  if (!ids.length) {
+    return;
+  }
+  try {
+    const stored: CloudSyncRecord | undefined = await get(uid, syncStore);
+    if (stored?.version !== 1 || stored.uid !== uid) {
+      return;
+    }
+    for (const id of ids) {
+      delete stored.scenes[id];
+    }
+    await set(uid, stored, syncStore);
+  } catch (error: any) {
+    console.error(error);
+  }
+};
+
+/**
  * Signing out leaves the local scenes alone — localStorage is the source of
  * truth and nothing here was ever only in the cloud, with one exception:
  * scenes pulled as metadata whose payload was never downloaded. Those are not
@@ -598,6 +628,7 @@ const stop = () => {
   engine.stop();
   unsubscribeRemote?.();
   unsubscribeRemote = null;
+  const stoppedUid = record?.uid ?? null;
   record = null;
   startingUid = null;
   // clearing `record` above is what makes the in-flight downloads bail; this
@@ -610,12 +641,17 @@ const stop = () => {
   const index = getScenesIndex();
   const kept = index.scenes.filter((scene) => scene.materialized !== false);
   if (kept.length !== index.scenes.length) {
+    const dropped: SceneId[] = [];
     // a download that landed between the sign-out and this line would leave
     // keys behind for a scene about to drop out of the index
     for (const scene of index.scenes) {
       if (scene.materialized === false) {
+        dropped.push(scene.id);
         deleteSceneSync(scene.id);
       }
+    }
+    if (stoppedUid) {
+      void forgetPushedScenes(stoppedUid, dropped);
     }
     const now = Date.now();
     // signing out on a device that only ever held pulled scenes would
