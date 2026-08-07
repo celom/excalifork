@@ -11,7 +11,9 @@ import {
   signInWithGoogle,
   signOutUser,
 } from "../data/auth";
+import { localStorageQuotaExceededAtom } from "../data/LocalData";
 import {
+  cloudSyncDownloadingAtom,
   cloudSyncErrorAtom,
   cloudSyncPendingAtom,
   cloudSyncStatusAtom,
@@ -170,6 +172,8 @@ export const SceneDestinations = () => {
   const cloudStatus = useAtomValue(cloudSyncStatusAtom);
   const cloudError = useAtomValue(cloudSyncErrorAtom);
   const cloudPending = useAtomValue(cloudSyncPendingAtom);
+  const cloudDownloading = useAtomValue(cloudSyncDownloadingAtom);
+  const storageFull = useAtomValue(localStorageQuotaExceededAtom);
 
   const scenesIndex = useAtomValue(scenesIndexAtom);
   const [isConfirmingStop, setIsConfirmingStop] = useState(false);
@@ -295,11 +299,20 @@ export const SceneDestinations = () => {
     if (cloudStatus === "error") {
       return cloudError ?? "Sync failed.";
     }
+    const scenes = `${cloudPending} scene${cloudPending === 1 ? "" : "s"}`;
+    if (cloudDownloading) {
+      return `Downloading ${scenes}…`;
+    }
     if (cloudStatus === "syncing") {
       return "Syncing…";
     }
     if (cloudPending > 0) {
-      return `Synced — ${cloudPending} to download`;
+      // the drain runs to completion at the end of every pass, so anything
+      // still here is a scene it could not fetch — say so rather than imply
+      // a transfer that is about to finish on its own
+      return storageFull
+        ? `${scenes} not downloaded — this browser's storage is full`
+        : `${scenes} not downloaded — open one to retry`;
     }
     return "Saving every change";
   };

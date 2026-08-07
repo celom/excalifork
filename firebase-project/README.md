@@ -32,7 +32,11 @@ Storage    users/{uid}/files/{fileId}     image files, content-addressed
 
 Metadata and payloads are split because Firestore documents cap at 1 MiB and scenes have no such bound, and because the index is what every device reads on every sync pass — keeping payloads out of it makes that read cheap and makes an `onSnapshot` listener a viable live-update channel between devices.
 
-`excalidraw-app/scenes/cloudSync.ts` drives it; the merge rules it runs on are in `cloudMerge.ts`, kept pure and directly tested because they are the part that can lose a drawing. The short version: per-scene last-write-wins on `updatedAt`, deletions carried as tombstones so a delete on one device isn't undone by the next push from another, and payloads pulled lazily when a scene is opened rather than eagerly — an account can hold far more than one browser's localStorage.
+`excalidraw-app/scenes/cloudSync.ts` drives it; the merge rules it runs on are in `cloudMerge.ts`, kept pure and directly tested because they are the part that can lose a drawing. The short version: per-scene last-write-wins on `updatedAt`, deletions carried as tombstones so a delete on one device isn't undone by the next push from another, and metadata synced ahead of payloads.
+
+That last split is what a new device sees: the index doc arrives in one read, then a drain at the end of the pass downloads the blobs one at a time (`drainPendingScenes`). Until a blob lands its scene sits in the index as `materialized: false` and every read path refuses it — an undownloaded scene read as an empty one would replicate that emptiness back over the real data. Opening a scene the drain hasn't reached fetches it on the spot, de-duplicated against the drain's own download.
+
+Downloading everything has a known limit: an account can hold far more than one browser's ~5MB of localStorage. The drain is sequential and stops at the first `QuotaExceededError` rather than re-hitting it once per scene; what it couldn't fetch stays listed, still opens on demand, and is retried on the next pass. `excalidraw-app/tests/cloudDrain.test.ts` pins that down, along with the partial-write cleanup — a payload that fails halfway must leave no keys behind, since a half-written blob under a scene id is indistinguishable from a real one. Lifting the ceiling means moving scene blobs to IndexedDB, which is what the `ScenesStorageAdapter` seam in `scenes/storage.ts` exists for.
 
 No bucket CORS configuration is needed, despite what most Cloud Storage advice says. `gsutil cors set` governs `storage.googleapis.com`, the direct GCS API. The JS SDK doesn't use that host — `getBytes`, `uploadBytes` and `deleteObject` all go to `firebasestorage.googleapis.com/v0/...`, the Firebase-managed endpoint, which answers preflight from any origin with `access-control-allow-origin: *` and allows the headers the SDK sends (`Authorization`, `Range`, `Content-Type`). Verify with:
 
@@ -80,6 +84,8 @@ Provisioned in `excalifork-40f48`:
 ```bash
 firebase deploy --only storage,firestore
 ```
+
+**Rules in this repo are not rules in the project.** Editing the files above changes nothing until this command runs, and the failure mode is quiet: sign-in succeeds, then every workspace read returns `permission-denied` and the app reports "This account isn't allowed to store scenes here". The `users/{uid}` matches shipped in one commit and were deployed in another, which is exactly that gap. Re-run the deploy after any change to either file.
 
 The room and share-link paths are permissive by upstream design (`allow get, write: if true`), and nothing in them is confidential: those contents are encrypted client-side. The `users/{uid}` paths are the opposite — unencrypted, with the rules as the only boundary — so a mistake there is a real disclosure, not a nuisance. Verify per-user isolation in the rules simulator after any rules change, and keep this project single-purpose: it has no guardrail against a public bucket beyond the rules themselves.
 
