@@ -67,8 +67,18 @@ const isNotFound = (error: any) =>
 
 const packJSON = (value: unknown) => gzipSync(strToU8(JSON.stringify(value)));
 
-const unpackJSON = <T>(buffer: ArrayBuffer): T =>
-  JSON.parse(strFromU8(gunzipSync(new Uint8Array(buffer))));
+/**
+ * Blobs written before the `contentEncoding` fix below carry
+ * `contentEncoding: gzip` in their GCS metadata, so the download is
+ * decompressively transcoded and arrives as plain JSON rather than the bytes
+ * that were stored. Sniffing the gzip magic number reads both without a
+ * migration pass over the bucket.
+ */
+const unpackJSON = <T>(buffer: ArrayBuffer): T => {
+  const bytes = new Uint8Array(buffer);
+  const isGzipped = bytes[0] === 0x1f && bytes[1] === 0x8b;
+  return JSON.parse(strFromU8(isGzipped ? gunzipSync(bytes) : bytes));
+};
 
 /** resolves to null when the object does not exist, throws on anything else */
 const getObject = async <T>(
@@ -84,10 +94,16 @@ const getObject = async <T>(
   }
 };
 
+/**
+ * Deliberately no `contentEncoding: "gzip"`. The compression here is part of
+ * the payload, not a transport encoding: declaring it makes Cloud Storage
+ * decompressively transcode the object on the way out, so the client receives
+ * the JSON rather than the gzip stream it wrote, and `gunzipSync` fails. The
+ * bytes are opaque to the transport, hence `application/octet-stream`.
+ */
 const putObject = async (reference: ReturnType<typeof ref>, value: unknown) => {
   await uploadBytes(reference, packJSON(value), {
-    contentType: "application/json",
-    contentEncoding: "gzip",
+    contentType: "application/octet-stream",
   });
 };
 

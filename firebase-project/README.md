@@ -38,16 +38,46 @@ That last split is what a new device sees: the index doc arrives in one read, th
 
 Downloading everything has a known limit: an account can hold far more than one browser's ~5MB of localStorage. The drain is sequential and stops at the first `QuotaExceededError` rather than re-hitting it once per scene; what it couldn't fetch stays listed, still opens on demand, and is retried on the next pass. `excalidraw-app/tests/cloudDrain.test.ts` pins that down, along with the partial-write cleanup — a payload that fails halfway must leave no keys behind, since a half-written blob under a scene id is indistinguishable from a real one. Lifting the ceiling means moving scene blobs to IndexedDB, which is what the `ScenesStorageAdapter` seam in `scenes/storage.ts` exists for.
 
-No bucket CORS configuration is needed, despite what most Cloud Storage advice says. `gsutil cors set` governs `storage.googleapis.com`, the direct GCS API. The JS SDK doesn't use that host — `getBytes`, `uploadBytes` and `deleteObject` all go to `firebasestorage.googleapis.com/v0/...`, the Firebase-managed endpoint, which answers preflight from any origin with `access-control-allow-origin: *` and allows the headers the SDK sends (`Authorization`, `Range`, `Content-Type`). Verify with:
+### Bucket CORS is required for downloads
+
+Reading a scene blob in the browser needs CORS configured on the bucket. Without it, `getBytes` fails with `No 'Access-Control-Allow-Origin' header is present on the requested resource`.
+
+An earlier version of this file claimed otherwise, on the strength of an `OPTIONS` probe. That probe is misleading, and it is worth spelling out why so nobody re-runs it and draws the same conclusion. The two halves of the request are served by different things:
+
+- the **preflight**, and any response the Firebase layer generates itself (a `403` from a rules denial, a `404`), come from `firebasestorage.googleapis.com` and always carry `access-control-allow-origin: *`
+- the **successful download body** (`?alt=media`) is served through from GCS and carries no `access-control-allow-origin` header at all unless the bucket has a CORS policy
+
+So the preflight passes, the rules pass, the object is returned with `200`, and the browser then drops it. Probing with `OPTIONS` — or with any request that gets rejected before it reaches the object — tests only the half that was never the problem.
+
+Check the half that matters, on an object that actually reads. `access-control-allow-origin` must be present here:
 
 ```bash
-curl -sD - -o /dev/null -X OPTIONS \
-  "https://firebasestorage.googleapis.com/v0/b/excalifork-40f48.firebasestorage.app/o/probe?alt=media" \
-  -H "Origin: https://example.com" -H "Access-Control-Request-Method: GET" \
-  -H "Access-Control-Request-Headers: authorization,range" | grep -i access-control
+curl -sD - -o /dev/null \
+  "https://firebasestorage.googleapis.com/v0/b/excalifork-40f48.firebasestorage.app/o/<readable-object>?alt=media" \
+  -H "Origin: https://excalifork.com" | grep -i access-control
 ```
 
-This would stop being true if scenes were ever fetched by raw URL against `storage.googleapis.com` instead of through the SDK.
+To set the policy:
+
+```bash
+cat > cors.json <<'EOF'
+[
+  {
+    "origin": ["https://excalifork.com", "http://localhost:3000"],
+    "method": ["GET"],
+    "responseHeader": ["Content-Type", "Content-Range", "Content-Encoding", "Range", "Authorization"],
+    "maxAgeSeconds": 3600
+  }
+]
+EOF
+gcloud storage buckets update gs://excalifork-40f48.firebasestorage.app --cors-file=cors.json
+```
+
+This is bucket state, not part of `firebase deploy` — a project rebuilt from this repo needs it applied separately from the rules.
+
+### Scene blobs are gzipped by the app, not by the transport
+
+`cloudStorage.ts` compresses payloads with fflate and stores the result as `application/octet-stream`. It deliberately does **not** set `contentEncoding: "gzip"` on the object. Doing so tells Cloud Storage the gzip is a transport encoding it may strip, so downloads get decompressively transcoded and the client receives JSON where it expected a gzip stream — `gunzipSync` then throws on every scene. `unpackJSON` sniffs the gzip magic number so blobs written before this was understood still load.
 
 ### Per-user storage is not end-to-end encrypted
 
