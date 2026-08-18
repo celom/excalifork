@@ -31,6 +31,7 @@ import {
 import { exportScenesArchive } from "../scenes/export";
 import {
   ROOT_COLLECTION_ID,
+  ROOT_COLLECTION_NAME,
   SCENES_SIDEBAR_NAME,
   scenesIndexAtom,
   openCollectionIdAtom,
@@ -44,7 +45,7 @@ import {
 } from "./ArchiveImportFlow";
 import { getCollectionIcon } from "./collectionIcons";
 import { SceneCard } from "./SceneCard";
-import { dashboardIcon } from "./ScenesTab";
+import { rootCollectionIcon } from "./ScenesTab";
 
 import "./CollectionView.scss";
 
@@ -307,8 +308,10 @@ export const CollectionView = () => {
       <div className="collection-view__header">
         <div className="collection-view__heading">
           <div className="collection-view__title">
-            {collection ? getCollectionIcon(collection.icon) : dashboardIcon}
-            <span>{collection ? collection.name : "Default"}</span>
+            {collection
+              ? getCollectionIcon(collection.icon)
+              : rootCollectionIcon}
+            <span>{collection ? collection.name : ROOT_COLLECTION_NAME}</span>
           </div>
           <div className="collection-view__subtitle">
             {scenes.length === 1 ? "1 scene" : `${scenes.length} scenes`}

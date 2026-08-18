@@ -31,6 +31,8 @@ import {
   sceneElementsKey,
 } from "../app_constants";
 
+import { backfillOrder } from "./ordering";
+
 export type SceneId = string;
 
 export type CollectionId = string;
@@ -48,6 +50,17 @@ export type CollectionMeta = {
    * to be missing it.
    */
   updatedAt?: number;
+  /**
+   * Sort key for the user-controlled order — see `ordering.ts`. Absent until
+   * the item is reordered or backfilled, where `createdAt` stands in.
+   */
+  order?: number;
+  /**
+   * When `order` was last set by a user reorder. Cloud sync merges `order` on
+   * this clock rather than on `updatedAt`, so a reorder and a concurrent edit
+   * to the same item don't cancel each other out.
+   */
+  orderedAt?: number;
 };
 
 export type SceneMeta = {
@@ -79,6 +92,17 @@ export type SceneMeta = {
    * emptiness and replicate it over the real data.
    */
   materialized?: boolean;
+  /**
+   * Sort key for the user-controlled order — see `ordering.ts`. Absent until
+   * the item is reordered or backfilled, where `createdAt` stands in.
+   */
+  order?: number;
+  /**
+   * When `order` was last set by a user reorder. Cloud sync merges `order` on
+   * this clock rather than on `updatedAt`, so a reorder and a concurrent edit
+   * to the same item don't cancel each other out.
+   */
+  orderedAt?: number;
 };
 
 export type ScenesIndex = {
@@ -331,6 +355,19 @@ const createInitialIndex = (): ScenesIndex => {
   };
 };
 
+/** one-off: pins the array order of a pre-sort-key index onto its items */
+const backfillIndexOrder = (index: ScenesIndex): ScenesIndex => {
+  const scenes = backfillOrder(index.scenes);
+  const collections = index.collections && backfillOrder(index.collections);
+  return scenes || collections
+    ? {
+        ...index,
+        scenes: scenes ?? index.scenes,
+        ...(collections ? { collections } : {}),
+      }
+    : index;
+};
+
 /**
  * Returns the scenes index, migrating an interim "documents" index or the
  * legacy single scene (into scene #1) on first call. Idempotent — keyed on
@@ -339,8 +376,18 @@ const createInitialIndex = (): ScenesIndex => {
 export const getOrCreateScenesIndex = (): ScenesIndex => {
   const stored = loadIndexSync();
   if (stored) {
-    inMemoryIndex = stored;
-    return stored;
+    // indexes written before sort keys existed carry their order in the array
+    // itself, which stops meaning anything once the merge starts sorting
+    const backfilled = backfillIndexOrder(stored);
+    inMemoryIndex = backfilled;
+    if (backfilled !== stored) {
+      try {
+        saveIndexSync(backfilled);
+      } catch (error: any) {
+        console.error(error);
+      }
+    }
+    return backfilled;
   }
   const migrated = migrateDocumentsIndex();
   if (migrated) {

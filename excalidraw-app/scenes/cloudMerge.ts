@@ -34,6 +34,9 @@
  * a device could still be carrying the deleted scene.
  */
 
+import { sortByOrder } from "./ordering";
+
+import type { Ordered } from "./ordering";
 import type {
   CollectionId,
   CollectionMeta,
@@ -206,6 +209,31 @@ const toRemoteScene = (scene: SceneMeta): RemoteSceneMeta => {
 const collectionUpdatedAt = (collection: CollectionMeta) =>
   collection.updatedAt ?? collection.createdAt;
 
+/**
+ * `order` merges on its own clock, layered over whichever copy of the item
+ * won. It has to: a scene's `updatedAt` is a content clock (it bumps on
+ * pan/zoom), so a reorder mustn't touch it — and an untouched clock means a
+ * reorder can never win the ordinary comparison. A missing `orderedAt` means
+ * "never explicitly reordered on this side", which any explicit reorder
+ * beats; if neither side has one, the winner's own key stands.
+ */
+const mergeOrder = <T extends Ordered>(
+  winner: T,
+  l: T | undefined,
+  r: T | undefined,
+): T => {
+  const localAt = l?.orderedAt;
+  const remoteAt = r?.orderedAt;
+  if (localAt == null && remoteAt == null) {
+    return winner;
+  }
+  const source =
+    remoteAt != null && (localAt == null || remoteAt > localAt) ? r! : l!;
+  return source === winner
+    ? winner
+    : { ...winner, order: source.order, orderedAt: source.orderedAt };
+};
+
 export const mergeCloudIndex = ({
   local,
   remote,
@@ -319,6 +347,15 @@ export const mergeCloudIndex = ({
     }
   }
 
+  // sorted, not left in the order they were merged in: the sort key is what
+  // carries a reorder between devices, and every consumer of the index reads
+  // the array as the display order
+  const orderedScenes = sortByOrder(
+    scenes.map((scene) =>
+      mergeOrder(scene, localById.get(scene.id), remoteById.get(scene.id)),
+    ),
+  );
+
   const collections = mergeCollections({
     local: local.collections ?? [],
     remote: remote?.collections ?? [],
@@ -335,7 +372,7 @@ export const mergeCloudIndex = ({
 
   const nextRemote: RemoteIndex = {
     version: 1,
-    scenes: scenes
+    scenes: orderedScenes
       .filter((scene) => !unpublished.has(scene.id))
       .map(toRemoteScene),
     collections: collections.map(stripUndefined),
@@ -349,7 +386,7 @@ export const mergeCloudIndex = ({
   }
 
   return {
-    scenes,
+    scenes: orderedScenes,
     collections,
     uploads,
     invalidated,
@@ -404,12 +441,12 @@ const mergeCollections = ({
       case "keep-local":
       case "unchanged":
       case "skip-push":
-        merged.push(l!);
+        merged.push(mergeOrder(l!, l, r));
         delete tombstones[id];
         break;
       case "take-remote":
       case "add-remote":
-        merged.push(r!);
+        merged.push(mergeOrder(r!, l, r));
         delete tombstones[id];
         break;
       case "tombstone":
@@ -420,5 +457,5 @@ const mergeCollections = ({
     }
   }
 
-  return merged;
+  return sortByOrder(merged);
 };

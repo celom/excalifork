@@ -15,6 +15,7 @@ import { isCollaboratingAtom } from "../collab/Collab";
 import { LocalData } from "../data/LocalData";
 import { switchToScene } from "../scenes/actions";
 import {
+  COLLECTION_DRAG_MIME,
   SCENE_DRAG_MIME,
   assignSceneToCollection,
   createCollection,
@@ -22,11 +23,13 @@ import {
   getCollections,
   getSceneCollectionId,
   renameCollection,
+  reorderCollection,
   setCollectionIcon,
 } from "../scenes/collections";
 import { searchScenes } from "../scenes/search";
 import {
   ROOT_COLLECTION_ID,
+  ROOT_COLLECTION_NAME,
   SCENES_SIDEBAR_NAME,
   scenesIndexAtom,
   openCollectionIdAtom,
@@ -67,6 +70,15 @@ export const formatRelativeTime = (timestamp: number) => {
   return "just now";
 };
 
+type DropPosition = "before" | "after";
+
+/** the collection list is a vertical stack — the pointer's half of the row
+ * picks the insertion side */
+const dropPositionForEvent = (event: React.DragEvent): DropPosition => {
+  const rect = event.currentTarget.getBoundingClientRect();
+  return event.clientY < rect.top + rect.height / 2 ? "before" : "after";
+};
+
 const SearchResultThumbnail = ({ meta }: { meta: SceneMeta }) => {
   const { canvasHostRef, status } = useScenePreview(meta);
   return (
@@ -92,6 +104,14 @@ export const ScenesTab = () => {
   const [dropTargetId, setDropTargetId] = useState<OpenCollectionId | null>(
     null,
   );
+  // row being dragged for reorder, and where it would land
+  const [draggingCollectionId, setDraggingCollectionId] = useState<
+    string | null
+  >(null);
+  const [reorderTarget, setReorderTarget] = useState<{
+    collectionId: string;
+    position: DropPosition;
+  } | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
 
   const [renamingCollectionId, setRenamingCollectionId] = useState<
@@ -111,9 +131,9 @@ export const ScenesTab = () => {
     return null;
   }
 
-  const collections = [...getCollections(scenesIndex)].sort(
-    (a, b) => a.createdAt - b.createdAt,
-  );
+  // index order — the user can reorder by dragging; a newly created
+  // collection appends last
+  const collections = getCollections(scenesIndex);
 
   const sceneCounts = new Map<OpenCollectionId, number>();
   for (const scene of scenesIndex.scenes) {
@@ -134,6 +154,62 @@ export const ScenesTab = () => {
   const searchResults = isSearching
     ? searchScenes(scenesIndex, searchQuery)
     : [];
+
+  const draggingIndex = draggingCollectionId
+    ? collections.findIndex(
+        (collection) => collection.id === draggingCollectionId,
+      )
+    : -1;
+
+  // dropping a row right next to itself would change nothing — don't show an
+  // insertion bar there
+  const isNoopDrop = (targetIndex: number, position: DropPosition) =>
+    draggingIndex !== -1 &&
+    (position === "before"
+      ? targetIndex === draggingIndex + 1
+      : targetIndex === draggingIndex - 1);
+
+  const clearReorderTarget = (collectionId: string) =>
+    setReorderTarget((current) =>
+      current?.collectionId === collectionId ? null : current,
+    );
+
+  /** reorder drop-target wiring; only used while a row is being dragged */
+  const reorderDropHandlers = (
+    collectionId: string,
+    collectionIndex: number,
+  ) => ({
+    onDragOver: (event: React.DragEvent) => {
+      const position = dropPositionForEvent(event);
+      if (isNoopDrop(collectionIndex, position)) {
+        clearReorderTarget(collectionId);
+        return;
+      }
+      event.preventDefault();
+      event.dataTransfer.dropEffect = "move";
+      setReorderTarget((current) =>
+        current?.collectionId === collectionId && current.position === position
+          ? current
+          : { collectionId, position },
+      );
+    },
+    onDragLeave: (event: React.DragEvent) => {
+      // ignore transitions into the row's own children
+      if (!event.currentTarget.contains(event.relatedTarget as Node)) {
+        clearReorderTarget(collectionId);
+      }
+    },
+    onDrop: (event: React.DragEvent) => {
+      event.preventDefault();
+      const draggedId = event.dataTransfer.getData(COLLECTION_DRAG_MIME);
+      const position = dropPositionForEvent(event);
+      if (draggedId && !isNoopDrop(collectionIndex, position)) {
+        reorderCollection(draggedId, collectionId, position);
+      }
+      setReorderTarget(null);
+      setDraggingCollectionId(null);
+    },
+  });
 
   const collectionDropHandlers = (target: OpenCollectionId) => ({
     onDragOver: (event: React.DragEvent) => {
@@ -248,8 +324,10 @@ export const ScenesTab = () => {
             onClick={() => setOpenCollectionId(ROOT_COLLECTION_ID)}
             {...collectionDropHandlers(ROOT_COLLECTION_ID)}
           >
-            {dashboardIcon}
-            <span className="scenes-tab__row-label">Default</span>
+            {rootCollectionIcon}
+            <span className="scenes-tab__row-label">
+              {ROOT_COLLECTION_NAME}
+            </span>
             <span className="scenes-tab__row-count">
               {sceneCounts.get(ROOT_COLLECTION_ID) ?? 0}
             </span>
@@ -271,7 +349,7 @@ export const ScenesTab = () => {
             </button>
           </div>
           <div className="scenes-tab__collections">
-            {collections.map((collection) =>
+            {collections.map((collection, collectionIndex) =>
               collection.id === renamingCollectionId ? (
                 <div
                   key={collection.id}
@@ -307,9 +385,36 @@ export const ScenesTab = () => {
                       openCollectionId === collection.id,
                     "scenes-tab__collection--drop-target":
                       dropTargetId === collection.id,
+                    "scenes-tab__collection--dragging":
+                      draggingCollectionId === collection.id,
+                    "scenes-tab__collection--drop-before":
+                      reorderTarget?.collectionId === collection.id &&
+                      reorderTarget.position === "before",
+                    "scenes-tab__collection--drop-after":
+                      reorderTarget?.collectionId === collection.id &&
+                      reorderTarget.position === "after",
                   })}
+                  draggable
+                  onDragStart={(event) => {
+                    event.dataTransfer.setData(
+                      COLLECTION_DRAG_MIME,
+                      collection.id,
+                    );
+                    event.dataTransfer.effectAllowed = "move";
+                    setDraggingCollectionId(collection.id);
+                  }}
+                  onDragEnd={() => {
+                    setDraggingCollectionId(null);
+                    setReorderTarget(null);
+                  }}
                   onClick={() => setOpenCollectionId(collection.id)}
-                  {...collectionDropHandlers(collection.id)}
+                  // a row is either a reorder target (another row is being
+                  // dragged) or a scene-assignment target — never both
+                  {...(draggingCollectionId
+                    ? draggingCollectionId !== collection.id
+                      ? reorderDropHandlers(collection.id, collectionIndex)
+                      : undefined
+                    : collectionDropHandlers(collection.id))}
                 >
                   <div className="scenes-tab__collection-name">
                     <button
@@ -431,8 +536,8 @@ export const ScenesTab = () => {
         >
           <p>
             Are you sure you want to delete{" "}
-            <b>{pendingDeleteCollection.name}</b>? Its scenes will move back to
-            the Default collection.
+            <b>{pendingDeleteCollection.name}</b>? Its scenes will move back to{" "}
+            <b>{ROOT_COLLECTION_NAME}</b>.
           </p>
         </ConfirmDialog>
       )}
@@ -457,8 +562,9 @@ export const scenesTabIcon = (
   </svg>
 );
 
-// tabler-icons: layout-dashboard (no fitting icon in the editor package)
-export const dashboardIcon = (
+/** a ruled pad, the last line trailing off — the root collection's
+ * "Scratchpad" (hand-rolled; the editor package has no notepad icon) */
+export const rootCollectionIcon = (
   <svg
     xmlns="http://www.w3.org/2000/svg"
     viewBox="0 0 24 24"
@@ -468,9 +574,9 @@ export const dashboardIcon = (
     strokeLinecap="round"
     strokeLinejoin="round"
   >
-    <path d="M5 4h4a1 1 0 0 1 1 1v6a1 1 0 0 1 -1 1h-4a1 1 0 0 1 -1 -1v-6a1 1 0 0 1 1 -1" />
-    <path d="M5 16h4a1 1 0 0 1 1 1v2a1 1 0 0 1 -1 1h-4a1 1 0 0 1 -1 -1v-2a1 1 0 0 1 1 -1" />
-    <path d="M15 12h4a1 1 0 0 1 1 1v6a1 1 0 0 1 -1 1h-4a1 1 0 0 1 -1 -1v-6a1 1 0 0 1 1 -1" />
-    <path d="M15 4h4a1 1 0 0 1 1 1v2a1 1 0 0 1 -1 1h-4a1 1 0 0 1 -1 -1v-2a1 1 0 0 1 1 -1" />
+    <path d="M7 3 h10 a2 2 0 0 1 2 2 v14 a2 2 0 0 1 -2 2 h-10 a2 2 0 0 1 -2 -2 v-14 a2 2 0 0 1 2 -2 z" />
+    <path d="M9 8 h6" />
+    <path d="M9 12 h6" />
+    <path d="M9 16 h3" />
   </svg>
 );
