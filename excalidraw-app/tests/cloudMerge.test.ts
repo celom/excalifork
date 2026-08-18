@@ -13,7 +13,7 @@ import {
 } from "../scenes/cloudMerge";
 
 import type { CloudSyncRecord, RemoteIndex } from "../scenes/cloudMerge";
-import type { SceneMeta, ScenesIndex } from "../scenes/storage";
+import type { CollectionMeta, SceneMeta, ScenesIndex } from "../scenes/storage";
 
 const NOW = 1_000_000;
 
@@ -118,8 +118,10 @@ describe("first sign-in", () => {
     expect(plan.uploads).toEqual(["drawn"]);
     // the doc is rewritten to carry "drawn" — and the starter is still not in it
     expect(plan.remote?.scenes.map((s) => s.id)).toEqual(["drawn", "real"]);
-    // it stays usable locally — it just isn't the account's business
-    expect(ids(plan.scenes)).toEqual(["starter", "drawn", "real"]);
+    // it stays usable locally — it just isn't the account's business.
+    // Sorted, because the merge orders by sort key and these fixtures share
+    // one, leaving the id tie-break to decide
+    expect(ids(plan.scenes).sort()).toEqual(["drawn", "real", "starter"]);
   });
 });
 
@@ -438,5 +440,116 @@ describe("collections", () => {
     });
 
     expect(plan.publishedCollections).toEqual({ c: 1 });
+  });
+});
+
+describe("order", () => {
+  const collection = (id: string, extra: Partial<CollectionMeta> = {}) => ({
+    id,
+    name: id,
+    createdAt: 1,
+    ...extra,
+  });
+
+  it("takes a remote reorder even though the content clocks agree", () => {
+    // the whole point: `updatedAt` is untouched by a reorder, so without a
+    // clock of its own the remote key would never be looked at
+    const plan = merge({
+      local: localIndex([
+        scene("a", 10, { order: 100 }),
+        scene("b", 10, { order: 200 }),
+      ]),
+      remote: remoteIndex([
+        scene("a", 10, { order: 100 }),
+        scene("b", 10, { order: 50, orderedAt: 900 }),
+      ]),
+    });
+
+    expect(ids(plan.scenes)).toEqual(["b", "a"]);
+  });
+
+  it("keeps the newer reorder when both sides moved the same item", () => {
+    const plan = merge({
+      local: localIndex([
+        scene("a", 10, { order: 100 }),
+        scene("b", 10, { order: 300, orderedAt: 900 }),
+      ]),
+      remote: remoteIndex([
+        scene("a", 10, { order: 100 }),
+        scene("b", 10, { order: 50, orderedAt: 800 }),
+      ]),
+    });
+
+    expect(ids(plan.scenes)).toEqual(["a", "b"]);
+  });
+
+  it("lets an explicit reorder beat a side that only ever backfilled", () => {
+    const plan = merge({
+      local: localIndex([
+        scene("a", 10, { order: 0 }),
+        scene("b", 10, { order: 1000 }),
+      ]),
+      remote: remoteIndex([
+        scene("a", 10, { order: 0 }),
+        scene("b", 10, { order: -1000, orderedAt: 900 }),
+      ]),
+    });
+
+    expect(ids(plan.scenes)).toEqual(["b", "a"]);
+  });
+
+  it("carries a reorder without disturbing a newer edit to the same scene", () => {
+    // the local copy wins on content; only the key is layered over it
+    const plan = merge({
+      local: localIndex([
+        scene("a", 10, { order: 100 }),
+        scene("b", 40, { order: 200, name: "renamed here" }),
+      ]),
+      remote: remoteIndex([
+        scene("a", 10, { order: 100 }),
+        scene("b", 20, { order: 50, orderedAt: 900 }),
+      ]),
+      record: recordWith({ a: { updatedAt: 10 }, b: { updatedAt: 20 } }),
+    });
+
+    expect(ids(plan.scenes)).toEqual(["b", "a"]);
+    expect(plan.scenes.find((s) => s.id === "b")?.name).toBe("renamed here");
+    expect(plan.scenes.find((s) => s.id === "b")?.updatedAt).toBe(40);
+  });
+
+  it("reorders collections on the same rule", () => {
+    const plan = merge({
+      local: {
+        ...localIndex([scene("s", 10)]),
+        collections: [
+          collection("x", { order: 100 }),
+          collection("y", { order: 200 }),
+        ],
+      },
+      remote: {
+        ...remoteIndex([scene("s", 10)]),
+        collections: [
+          collection("x", { order: 100 }),
+          collection("y", { order: 50, orderedAt: 900 }),
+        ],
+      },
+    });
+
+    expect(plan.collections.map((c) => c.id)).toEqual(["y", "x"]);
+  });
+
+  it("publishes the merged order, so the next device to pull sees it", () => {
+    const plan = merge({
+      local: localIndex([
+        scene("a", 10, { order: 100 }),
+        scene("b", 10, { order: 50, orderedAt: 900 }),
+      ]),
+      remote: remoteIndex([
+        scene("a", 10, { order: 100 }),
+        scene("b", 10, { order: 200 }),
+      ]),
+    });
+
+    expect(plan.remote?.scenes.map((s) => s.id)).toEqual(["b", "a"]);
   });
 });

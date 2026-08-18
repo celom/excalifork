@@ -6,6 +6,7 @@
  * notification are handled by `setScenesIndex`'s write-through.
  */
 
+import { reorderKeys, sortByOrder } from "./ordering";
 import { getScenesIndex, setScenesIndex } from "./state";
 import { newSceneId } from "./storage";
 
@@ -19,6 +20,9 @@ import type {
 
 /** dataTransfer type for scene drags */
 export const SCENE_DRAG_MIME = "application/x-excalidraw-scene-id";
+
+/** dataTransfer type for collection-row drags (reorder) */
+export const COLLECTION_DRAG_MIME = "application/x-excalidraw-collection-id";
 
 export const getCollections = (index: ScenesIndex): CollectionMeta[] =>
   index.collections ?? [];
@@ -91,7 +95,40 @@ export const setCollectionIcon = (id: CollectionId, icon: string | null) => {
   });
 };
 
-/** contained scenes move back to the root "Dashboard" */
+/**
+ * Moves `id` next to `targetId`, by stamping a sort key rather than by
+ * splicing the array — an array position is invisible to cloud sync's
+ * item-by-item merge, so a spliced order would never reach another device.
+ * See `ordering.ts`.
+ */
+export const reorderCollection = (
+  id: CollectionId,
+  targetId: CollectionId,
+  position: "before" | "after",
+) => {
+  const index = getScenesIndex();
+  const collections = getCollections(index);
+  const keys = reorderKeys(collections, id, targetId, position);
+  if (!keys) {
+    return;
+  }
+  const now = Date.now();
+  setScenesIndex({
+    ...index,
+    collections: sortByOrder(
+      collections.map((collection) => {
+        const order = keys.get(collection.id);
+        // `updatedAt` is deliberately untouched: it is the clock the rest of
+        // the collection merges on, and a reorder changed none of that
+        return order === undefined
+          ? collection
+          : { ...collection, order, orderedAt: now };
+      }),
+    ),
+  });
+};
+
+/** contained scenes move back to the root collection */
 export const deleteCollection = (id: CollectionId) => {
   const index = getScenesIndex();
   if (!getCollections(index).some((c) => c.id === id)) {

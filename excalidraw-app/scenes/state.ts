@@ -12,6 +12,10 @@ export const scenesIndexAtom = atom<ScenesIndex>(getOrCreateScenesIndex());
 
 // safe sentinel — real collection ids are UUIDs
 export const ROOT_COLLECTION_ID = "root" as const;
+
+/** user-facing name of the pseudo-collection holding uncollected scenes */
+export const ROOT_COLLECTION_NAME = "Scratchpad";
+
 export type OpenCollectionId = CollectionId | typeof ROOT_COLLECTION_ID;
 
 /** which collection dashboard overlay is open (null = closed) */

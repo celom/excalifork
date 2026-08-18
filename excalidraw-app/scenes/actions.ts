@@ -26,6 +26,7 @@ import { updateStaleImageStatuses } from "../data/FileManager";
 import { LocalData } from "../data/LocalData";
 
 import { materializeScene } from "./materialize";
+import { reorderKeys, sortByOrder } from "./ordering";
 import { getScenesIndex, setScenesIndex } from "./state";
 import { scenesStorage, newSceneId } from "./storage";
 
@@ -335,9 +336,10 @@ export const duplicateScene = async (id: SceneId) => {
 };
 
 /**
- * Moves a scene next to another one in the index — a pure index operation
- * (the dashboard renders scenes in index order), so no collab gating and
- * no save pausing.
+ * Moves a scene next to another one — a pure index operation (no collab
+ * gating, no save pausing). The position is stamped as a sort key rather
+ * than spliced into the array: cloud sync merges scene by scene, so an array
+ * position would never reach another device. See `ordering.ts`.
  */
 export const reorderScene = (
   id: SceneId,
@@ -345,21 +347,25 @@ export const reorderScene = (
   position: "before" | "after",
 ) => {
   const index = getScenesIndex();
-  const moved = index.scenes.find((scene) => scene.id === id);
-  if (!moved || id === targetId) {
+  const keys = reorderKeys(index.scenes, id, targetId, position);
+  if (!keys) {
     return;
   }
-  const scenes = index.scenes.filter((scene) => scene.id !== id);
-  const targetPosition = scenes.findIndex((scene) => scene.id === targetId);
-  if (targetPosition === -1) {
-    return;
-  }
-  scenes.splice(
-    position === "before" ? targetPosition : targetPosition + 1,
-    0,
-    moved,
-  );
-  setScenesIndex({ ...index, scenes });
+  const now = Date.now();
+  setScenesIndex({
+    ...index,
+    scenes: sortByOrder(
+      index.scenes.map((scene) => {
+        const order = keys.get(scene.id);
+        // `updatedAt` must not move: it is a content clock (it bumps on
+        // pan/zoom), and bumping it here would let a reorder win the
+        // last-write-wins race against a real edit made on another device
+        return order === undefined
+          ? scene
+          : { ...scene, order, orderedAt: now };
+      }),
+    ),
+  });
 };
 
 export const deleteScene = async (
